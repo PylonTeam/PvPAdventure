@@ -283,7 +283,7 @@ internal static class MatchReporter
             DateTime.SpecifyKind(completedMatch.EndUtc, DateTimeKind.Utc),
             GameMode,
             players,
-            null, // Tavernkeep currently cannot persist metrics for multi-player matches.
+            new Dictionary<string, string>(), // Tavernkeep requires metrics; an empty object adds no metric rows.
             BuildTeamsList(completedMatch.Teams, completedMatch.Players.Values),
             null);
     }
