@@ -40,7 +40,7 @@ If you're modifying/expanding existing functionality, here's a quick overview of
 - `Common.Combat` — PvP/PvE changes, i-frames, hit/kill markers, ghost heal/LoS adjustments, etc.
 - `Common.Combat.TeamBoss` — bosses only take damage from the team with the most damage (set in BossBalanceConfig)
 - `Common.Game` — match state, countdown, time remaining.
-- `Common.Game.GameReporters` — PvPHub integration for match history, achievement, etc.
+- `Common.Game.GameReporters` — Pylon integration for match history, achievement, etc.
 - `Common.Game.MatchReplays` — Reese integration for record/replay, etc.
 - `Common.Items` — item stats, bans, shimmer transforms, prefixes.
 - `Common.Loot` — boss loot and drop rates.

@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using Terraria;
-using MatchPayload = PvPHub.Common.MainMenu.API.MatchHistory.MatchApi.MatchPayload;
+using MatchPayload = Pylon.Common.MainMenu.API.MatchHistory.MatchApi.MatchPayload;
 
 namespace PvPAdventure.Common.Game.GameReporters;
 

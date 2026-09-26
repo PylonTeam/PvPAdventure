@@ -1,8 +1,8 @@
-using PvPHub.Common.Authentication;
-using PvPHub.Common.MainMenu.API;
-using PvPHub.Common.MainMenu.API.Achievements;
-using PvPHub.Common.MainMenu.API.MatchHistory;
-using PvPHub.Common.MainMenu.API.Profile;
+using Pylon.Common.Authentication;
+using Pylon.Common.MainMenu.API;
+using Pylon.Common.MainMenu.API.Achievements;
+using Pylon.Common.MainMenu.API.MatchHistory;
+using Pylon.Common.MainMenu.API.Profile;
 using System.Threading;
 using System.Threading.Tasks;
 using Terraria;
@@ -11,21 +11,21 @@ using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.Game.GameReporters;
 
-/// <summary>Typed access to the strongly referenced PvPHub services used by PvPAdventure.</summary>
-internal static class PvPHubService
+/// <summary>Typed access to the strongly referenced Pylon services used by PvPAdventure.</summary>
+internal static class PylonService
 {
     public static void LogMatchPostAuthPreflight()
     {
-        bool isOfficial = Main.dedServ && global::PvPHub.PvPHub.IsOfficial;
+        bool isOfficial = Main.dedServ && global::Pylon.Pylon.IsOfficial;
 
         Log.Info(
-            $"PvPHub match auth preflight: NetMode={Main.netMode}, DedServ={Main.dedServ}, PvPHubOfficial={isOfficial}, ActivePlayers={CountActivePlayers()}");
+            $"Pylon match auth preflight: NetMode={Main.netMode}, DedServ={Main.dedServ}, PylonOfficial={isOfficial}, ActivePlayers={CountActivePlayers()}");
 
         if (Main.netMode != NetmodeID.Server)
-            Log.Warn("PvPHub match posting is disabled because this instance is not a dedicated server.");
+            Log.Warn("Pylon match posting is disabled because this instance is not a dedicated server.");
 
         if (!isOfficial)
-            Log.Warn("PvPHub Steam IDs are unavailable because this server is not official. Start the dedicated server with -official to enable PvPHub server authentication.");
+            Log.Warn("Pylon Steam IDs are unavailable because this server is not official. Start the dedicated server with -official to enable Pylon server authentication.");
     }
 
     public static bool TryGetSteamId(Player player, out ulong steamId)
@@ -46,7 +46,7 @@ internal static class PvPHubService
                 if (Main.GameUpdateCount % 60 == 5)
                 {
                     Log.Warn(
-                    $"PvPHub Steam ID lookup failed. " +
+                    $"Pylon Steam ID lookup failed. " +
                     $"Player={DescribePlayer(player)}, " +
                     $"Result={identity?.ToString() ?? "<null>"}");
                 }
@@ -60,7 +60,7 @@ internal static class PvPHubService
                 if (Main.GameUpdateCount % 60 == 5)
                 {
                     Log.Warn(
-                    $"PvPHub Steam ID lookup rejected identity above Int64 range. " +
+                    $"Pylon Steam ID lookup rejected identity above Int64 range. " +
                     $"Player={DescribePlayer(player)}, SteamId={id}, " +
                     $"Int64Max={long.MaxValue}");
                 }
@@ -72,7 +72,7 @@ internal static class PvPHubService
 
             if (Main.GameUpdateCount % 60 == 5)
             {
-                Log.Debug($"PvPHub Steam ID lookup succeeded. Player={DescribePlayer(player)}, SteamId={steamId}");
+                Log.Debug($"Pylon Steam ID lookup succeeded. Player={DescribePlayer(player)}, SteamId={steamId}");
             }
             return true;
         }
@@ -80,7 +80,7 @@ internal static class PvPHubService
         {
             if (Main.GameUpdateCount % 60 == 5)
             {
-                Log.Warn($"PvPHub Steam ID lookup failed. Player={DescribePlayer(player)}, Error={ex}");
+                Log.Warn($"Pylon Steam ID lookup failed. Player={DescribePlayer(player)}, Error={ex}");
             }
             return false;
         }

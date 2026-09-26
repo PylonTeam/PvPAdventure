@@ -6,7 +6,6 @@ using PvPAdventure.Common.Game;
 using PvPAdventure.Content.Portals;
 using PvPAdventure.Core.Compat;
 using PvPAdventure.Core.Config;
-using PvPFramework.Common.Spawnbox;
 using Terraria;
 using Terraria.Audio;
 using Terraria.ID;
@@ -238,11 +237,11 @@ public sealed class ShakingChestNPC : GlobalNPC
     {
         anchorX = 0f;
 
-        Rectangle tileArea = ModContent.GetInstance<SpawnBoxSystem>().TileArea;
+        Rectangle tileArea = AdventureRegionSystem.TileArea;
         if (tileArea.IsEmpty)
             return false;
 
-        anchorX = SpawnBoxSystem.TileToWorld(tileArea).Center.X - npc.width / 2f;
+        anchorX = AdventureRegionSystem.WorldArea.Center.X - npc.width / 2f;
         return true;
     }
 
@@ -331,11 +330,11 @@ public sealed class ShakingChestNPC : GlobalNPC
 
     private static void ConfineToSpawnBox(NPC npc)
     {
-        Rectangle tileArea = ModContent.GetInstance<SpawnBoxSystem>().TileArea;
+        Rectangle tileArea = AdventureRegionSystem.TileArea;
         if (tileArea.IsEmpty)
             return;
 
-        Rectangle area = SpawnBoxSystem.TileToWorld(tileArea);
+        Rectangle area = AdventureRegionSystem.WorldArea;
         float minX = area.Left + SpawnBoxPadding;
         float maxX = area.Right - SpawnBoxPadding - npc.width;
         float minY = area.Top + SpawnBoxPadding;

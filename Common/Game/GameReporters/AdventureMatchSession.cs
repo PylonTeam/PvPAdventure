@@ -46,7 +46,7 @@ internal sealed class AdventureMatchSession
 
             if (liveSegments.TryGetValue(slot, out LivePlayerSegment segment))
             {
-                if (discoverPlayers && PvPHubService.TryGetSteamId(player, out ulong currentSteamId) &&
+                if (discoverPlayers && PylonService.TryGetSteamId(player, out ulong currentSteamId) &&
                     currentSteamId != segment.SteamId)
                 {
                     Log.Warn($"Player slot {slot} changed authenticated identity during a match. " +
@@ -61,7 +61,7 @@ internal sealed class AdventureMatchSession
             }
 
             if (!discoverPlayers || (Team)player.team == Team.None ||
-                !PvPHubService.TryGetSteamId(player, out ulong steamId))
+                !PylonService.TryGetSteamId(player, out ulong steamId))
                 continue;
 
             TryEnroll(player, steamId);
@@ -84,7 +84,7 @@ internal sealed class AdventureMatchSession
         }
 
         // Covers a player who authenticated, played, and disconnected between discovery samples.
-        if (PvPHubService.TryGetSteamId(player, out ulong steamId))
+        if (PylonService.TryGetSteamId(player, out ulong steamId))
         {
             TryEnroll(player, steamId);
             if (liveSegments.Remove(player.whoAmI, out segment) &&

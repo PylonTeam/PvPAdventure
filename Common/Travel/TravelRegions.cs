@@ -1,5 +1,5 @@
-﻿using Microsoft.Xna.Framework;
-using PvPFramework.Common.Spawnbox;
+using Microsoft.Xna.Framework;
+using PvPAdventure.Core.Compat;
 using PvPAdventure.Common.Travel.Beds;
 using PvPAdventure.Common.Travel.Portals;
 using PvPAdventure.Content.Portals;
@@ -39,7 +39,7 @@ internal static class TravelRegions
 
     private static bool IsNearWorldSpawn(Player player)
     {
-        return ModContent.GetInstance<SpawnBoxSystem>().TouchesWorldHitbox(player.Hitbox);
+        return AdventureRegionSystem.Contains(player);
     }
 
     private static bool IsNearOwnBed(Player player)

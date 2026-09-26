@@ -1,12 +1,12 @@
-using PvPHub.Common.MainMenu.API;
-using PvPHub.Common.MainMenu.API.Achievements;
+using Pylon.Common.MainMenu.API;
+using Pylon.Common.MainMenu.API.Achievements;
 using System;
 using System.Threading.Tasks;
 using Terraria;
 
 namespace PvPAdventure.Common.Game.GameReporters;
 
-/// <summary>Posts PvPAdventure game events through PvPHub's typed achievement API.</summary>
+/// <summary>Posts PvPAdventure game events through Pylon's typed achievement API.</summary>
 internal static class AchievementReporter
 {
     private const string GameMode = "pvpa";
@@ -16,7 +16,7 @@ internal static class AchievementReporter
     /// </summary>
     public static void OnSniperDoubleHit(Player shooter)
     {
-        if (!PvPHubService.TryGetSteamId(shooter, out ulong steamId))
+        if (!PylonService.TryGetSteamId(shooter, out ulong steamId))
             return;
 
         _ = ReportAsync(steamId, "hit_two_one_sniper_shot");
@@ -26,7 +26,7 @@ internal static class AchievementReporter
     {
         try
         {
-            ApiResult<ApiAchievement> result = await PvPHubService
+            ApiResult<ApiAchievement> result = await PylonService
                 .ProgressAchievementAsync(steamId, achievementName, GameMode)
                 .ConfigureAwait(false);
 

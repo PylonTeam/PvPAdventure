@@ -6,7 +6,7 @@ using PvPAdventure.Common.Statistics;
 using PvPAdventure.Common.Travel.Beds;
 using PvPFramework.Common.Scoreboard;
 using PvPFramework.Common.RacePeriod;
-using PvPHub.Common.SpiritAnimals;
+using Pylon.Common.SpiritAnimals;
 using PvPFramework.Common.Visualization.TileOutlines;
 using ReLogic.Content;
 using AdventureAssets = PvPAdventure.Core.Utilities.Ass;
@@ -30,12 +30,7 @@ public class PvPFrameworkIntegration : ModSystem
 {
     public override void Load()
     {
-        // Confine players to the spawn box until the match actually begins.
-        // While Waiting (pre-game), CanExit is false and the spawn box border blocks movement out.
-        PvPFramework.Common.Spawnbox.SpawnBoxSystem.CanExitProvider = () =>
-            ModContent.GetInstance<GameManager>().CurrentPhase == GameManager.Phase.Playing;
-
-        // PvPHub owns cosmetic selection and synchronization; Framework owns race mechanics.
+        // Pylon owns cosmetic selection and synchronization; Framework owns race mechanics.
         // The provider keeps that boundary data-driven and Bunny remains Framework's fallback.
         RacePeriodRules.MountTypeProvider = static player =>
             player.GetModPlayer<SpiritAnimalPlayer>().MountType;
@@ -59,8 +54,6 @@ public class PvPFrameworkIntegration : ModSystem
         BedOutlineTile.TeamResolver = null;
         RacePeriodRules.MountTypeProvider = null;
         RacePeriodRules.SpriteSheetProvider = null;
-        // Drop our delegate so it doesn't retain a reference to an unloaded GameManager.
-        PvPFramework.Common.Spawnbox.SpawnBoxSystem.CanExitProvider = static () => true;
     }
 
     private static Team? ResolveBedTeam(Point origin) =>

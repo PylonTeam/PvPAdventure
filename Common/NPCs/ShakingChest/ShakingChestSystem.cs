@@ -5,7 +5,7 @@ using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using PvPAdventure.Common.Game;
-using PvPFramework.Common.Spawnbox;
+using PvPAdventure.Core.Compat;
 using Terraria;
 using Terraria.ID;
 using Terraria.Localization;
@@ -133,11 +133,7 @@ public sealed class ShakingChestSystem : ModSystem
 
     private static void Spawn()
     {
-        SpawnBoxSystem spawnBox = ModContent.GetInstance<SpawnBoxSystem>();
-        Rectangle tileArea = spawnBox.AnchorTile.X > 0 && spawnBox.AnchorTile.Y > 0
-            ? spawnBox.TileArea
-            : Rectangle.Empty;
-        Rectangle area = tileArea.IsEmpty ? Rectangle.Empty : SpawnBoxSystem.TileToWorld(tileArea);
+        Rectangle area = AdventureRegionSystem.WorldArea;
         int x = area.IsEmpty ? Main.spawnTileX * 16 : area.Center.X;
         int y = (Main.spawnTileY - 1) * 16;
 

@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
 
 	<!-- Choose the SDK before its default properties are imported. -->
 	<PropertyGroup>
@@ -19,8 +19,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\ErkySSC\ErkySSC.csproj" />
 		<ProjectReference Include="..\PvPFramework\PvPFramework.csproj" />
-		<ProjectReference Include="..\PvPHub\PvPHub.csproj" />
+		<ProjectReference Include="..\Pylon\Pylon.csproj" />
 	</ItemGroup>
 
 	<!-- Tomat supplies these in Debug; the standard build needs them explicitly. -->

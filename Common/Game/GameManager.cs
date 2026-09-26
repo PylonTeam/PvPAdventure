@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using PvPAdventure.Common.Game.GameReporters;
 using PvPAdventure.Common.Game.MatchReplays;
 using PvPAdventure.Common.Game.StatTrackers;
@@ -496,6 +496,7 @@ public class GameManager : ModSystem
     // NOTE: This is not called on multiplayer clients (see CurrentPhase property).
     private void OnPhaseChange(Phase oldPhase, Phase newPhase)
     {
+        Core.Compat.AdventureRegionSystem.UpdateMatchState();
         Log.Chat("New GamePhase: " + newPhase + ", (old: " + oldPhase + ")");
 
         // Only save when a real match ends (Playing → Waiting transition)

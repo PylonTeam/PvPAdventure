@@ -1,14 +1,14 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using PvPHub.Common.MainMenu.Shop;
-using PvPHub.Common.Skins;
+using Pylon.Common.MainMenu.Shop;
+using Pylon.Common.Skins;
 using Terraria;
 
 namespace PvPAdventure.Common.Travel.Portals;
 
 /// <summary>
 /// Resolves the portal gun skin for a portal creator item. The skin rides on the item itself through
-/// PvPHub's skin data, so remote players' items carry it too and every client draws the same thing.
+/// Pylon's skin data, so remote players' items carry it too and every client draws the same thing.
 /// </summary>
 internal static class PortalCreatorSkin
 {

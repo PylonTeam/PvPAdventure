@@ -5,7 +5,7 @@ using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.Game.GameReporters;
 
-/// <summary>Shared match-stat keys and payload helpers for PvPHub reporting.</summary>
+/// <summary>Shared match-stat keys and payload helpers for Pylon reporting.</summary>
 internal static class StatsReporter
 {
     public const string DamageDealt = "damage_dealt";

@@ -1,4 +1,4 @@
-using PvPHub.Common.MainMenu.API;
+using Pylon.Common.MainMenu.API;
 using PvPFramework.Common.EndScreen;
 using System;
 using System.Collections.Generic;
@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 using Terraria;
 using Terraria.Enums;
 using Terraria.ID;
-using CompletedMatchPayload = PvPHub.Common.MainMenu.API.MatchHistory.MatchApi.CompletedMatchPayload;
-using MatchPayload = PvPHub.Common.MainMenu.API.MatchHistory.MatchApi.MatchPayload;
-using MatchPlayerPayload = PvPHub.Common.MainMenu.API.MatchHistory.MatchApi.MatchPlayerPayload;
-using MatchTeamPayload = PvPHub.Common.MainMenu.API.MatchHistory.MatchApi.MatchTeamPayload;
+using CompletedMatchPayload = Pylon.Common.MainMenu.API.MatchHistory.MatchApi.CompletedMatchPayload;
+using MatchPayload = Pylon.Common.MainMenu.API.MatchHistory.MatchApi.MatchPayload;
+using MatchPlayerPayload = Pylon.Common.MainMenu.API.MatchHistory.MatchApi.MatchPlayerPayload;
+using MatchTeamPayload = Pylon.Common.MainMenu.API.MatchHistory.MatchApi.MatchTeamPayload;
 
 namespace PvPAdventure.Common.Game.GameReporters;
 
@@ -87,7 +87,7 @@ internal static class MatchReporter
     {
         try
         {
-            ApiResult<CompletedMatchPayload> result = await PvPHubService.PostMatchAsync(payload, replayFilePath)
+            ApiResult<CompletedMatchPayload> result = await PylonService.PostMatchAsync(payload, replayFilePath)
                 .ConfigureAwait(false);
             string version = string.IsNullOrWhiteSpace(replayFilePath) ? "v1" : "v2";
 
@@ -148,7 +148,7 @@ internal static class MatchReporter
             if (player?.active != true || (Team)player.team == Team.None)
                 continue;
 
-            if (!PvPHubService.TryGetSteamId(player, out ulong steamId) ||
+            if (!PylonService.TryGetSteamId(player, out ulong steamId) ||
                 !payload.Players.ContainsKey(steamId))
             {
                 QueueGemResult(
@@ -182,7 +182,7 @@ internal static class MatchReporter
     {
         try
         {
-            ApiResult<long> result = await PvPHubService
+            ApiResult<long> result = await PylonService
                 .GetTotalGemsAsync(recipient.SteamId)
                 .ConfigureAwait(false);
 
@@ -250,7 +250,7 @@ internal static class MatchReporter
 
     private static MatchPayload BuildMatchPayload(CompletedAdventureMatch completedMatch)
     {
-        PvPHubService.LogMatchPostAuthPreflight();
+        PylonService.LogMatchPostAuthPreflight();
 
         Dictionary<ulong, MatchPlayerPayload> players = [];
         foreach ((ulong steamId, CompletedAdventurePlayer player) in completedMatch.Players)
@@ -283,7 +283,7 @@ internal static class MatchReporter
             DateTime.SpecifyKind(completedMatch.EndUtc, DateTimeKind.Utc),
             GameMode,
             players,
-            null, // Tavernkeep currently cannot persist metrics for multi-player matches.
+            new Dictionary<string, string>(), // Tavernkeep requires metrics; an empty object adds no metric rows.
             BuildTeamsList(completedMatch.Teams, completedMatch.Players.Values),
             null);
     }
@@ -333,7 +333,7 @@ internal static class MatchReporter
 
     private static void LogMatchEndSummary(MatchPayload payload, string replayFilePath, bool willPost)
     {
-        bool isOfficial = Main.dedServ && global::PvPHub.PvPHub.IsOfficial;
+        bool isOfficial = Main.dedServ && global::Pylon.Pylon.IsOfficial;
         bool hasReplay = !string.IsNullOrWhiteSpace(replayFilePath);
         string endpoint = hasReplay ? "match/v2" : "match/v1";
         string post = willPost ? endpoint + " queued" : "skipped (invalid payload)";
