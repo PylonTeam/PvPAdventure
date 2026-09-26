@@ -1,6 +1,6 @@
 displayName = PvP Adventure
 author = resin & Erky
-version = 1.0
+version = 1.1
 homepage = https://tpvpa.terraria.sh
 modReferences = ErkySSC, PvPFramework, Pylon
 buildIgnore = *.csproj, *.user, *.md, obj\*, bin\*, .vs\*, Assets\Old\*, Assets\Custom\Old\*, *.psd
