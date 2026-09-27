@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using PvPAdventure.Common.Game.GameReporters;
+using ErkySSC.Common.RegionProtection;
 using PvPAdventure.Common.Game.MatchReplays;
 using PvPAdventure.Common.Game.StatTrackers;
 using PvPAdventure.Common.Statistics;
@@ -560,9 +561,11 @@ public class GameManager : ModSystem
                     var spawnPosition = new Vector2(Main.spawnTileX, Main.spawnTileY - 3).ToWorldCoordinates();
                     foreach (var player in Main.ActivePlayers)
                     {
-                        if (Main.dedServ)
-                            NetMessage.SendData(MessageID.TeleportEntity, -1, -1, null, 0, player.whoAmI, spawnPosition.X,
-                                spawnPosition.Y, 2);
+                        if (!Main.dedServ) continue;
+                        RemoteClient.CheckSection(player.whoAmI, spawnPosition);
+                        player.velocity = Vector2.Zero;
+                        player.Teleport(spawnPosition, TeleportationStyleID.RecallPotion);
+                        RegionTeleportSystem.Synchronize(player, TeleportationStyleID.RecallPotion);
                     }
 
                     UpdateFreezeTime(true);
