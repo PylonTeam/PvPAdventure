@@ -5,7 +5,6 @@ using PvPAdventure.Core.Net;
 using ReLogic.Content;
 using System;
 using Terraria;
-using Terraria.GameContent;
 using Terraria.ID;
 using Terraria.Localization;
 using Terraria.ModLoader;
@@ -19,20 +18,20 @@ internal sealed class GameManagerErkySSCTool : ModSystem
 
     public override void PostSetupContent()
     {
-        // Don't register here — Ass.IconStartGame may be re-assigned by AssetLoader later
+        // Register during mod loading so ErkySSC also creates the Controls entries.
         RegisterErkySSCQuickbarEntries();
     }
 
     public override void OnWorldLoad()
     {
-        // Yep, this works!
+        // Refresh the callbacks and icons without creating duplicate keybinds.
         RegisterErkySSCQuickbarEntries();
     }
 
     public override void Unload()
     {
-        if (!ModLoader.TryGetMod("ErkySSC", out Mod erky))
-            return;
+        if (ModLoader.TryGetMod("ErkySSC", out Mod erky))
+            erky.Call("ClearAdminQuickbarEntries", Owner);
     }
 
     private static void RegisterErkySSCQuickbarEntries()
@@ -56,6 +55,89 @@ internal sealed class GameManagerErkySSCTool : ModSystem
             20,
             "Ctrl+G"
         );
+
+        // Omitting a default key leaves these actions available for rebinding in Controls.
+        erky.Call(
+            "RegisterAdminQuickbarEntry",
+            Owner,
+            "quick_start_game",
+            "PvP Adventure : Quick Start Game",
+            $"Immediately start a {GameManager.MaxGameDurationFrames / (60 * 60)}-minute game with no countdown",
+            startIcon,
+            new Action(QuickStartGame),
+            null,
+            null,
+            true,
+            21
+        );
+
+        erky.Call(
+            "RegisterAdminQuickbarEntry",
+            Owner,
+            "quick_end_game",
+            "PvP Adventure : Quick End Game",
+            "Immediately end the game or cancel its countdown without confirmation",
+            Ass.IconEndGame,
+            new Action(QuickEndGame),
+            null,
+            null,
+            true,
+            22
+        );
+    }
+
+    private static void QuickStartGame()
+    {
+        GameManager gm = ModContent.GetInstance<GameManager>();
+
+        if (gm.CurrentPhase == GameManager.Phase.Playing)
+        {
+            Main.NewText(Language.GetTextValue("Mods.PvPAdventure.Tools.DLStartGameTool.AlreadyInProgress"), Color.Red);
+            return;
+        }
+
+        if (gm._startGameCountdown.HasValue)
+        {
+            Main.NewText(Language.GetTextValue("Mods.PvPAdventure.Tools.DLStartGameTool.CannotStart"), Color.Red);
+            return;
+        }
+
+        if (Main.netMode == NetmodeID.SinglePlayer)
+        {
+            gm.StartGame(GameManager.MaxGameDurationFrames, countdownTimeInSeconds: 0);
+        }
+        else if (Main.netMode == NetmodeID.MultiplayerClient)
+        {
+            ModPacket packet = ModContent.GetInstance<PvPAdventure>().GetPacket();
+            packet.Write((byte)AdventurePacketIdentifier.GameManager);
+            packet.Write((byte)GameManagerNetHandler.GameManagerPacketType.StartGame);
+            packet.Write(GameManager.MaxGameDurationFrames);
+            packet.Write(0);
+            packet.Send();
+        }
+    }
+
+    private static void QuickEndGame()
+    {
+        GameManager gm = ModContent.GetInstance<GameManager>();
+
+        if (gm.CurrentPhase != GameManager.Phase.Playing && !gm._startGameCountdown.HasValue)
+        {
+            Main.NewText(Language.GetTextValue("Mods.PvPAdventure.Tools.DLEndGameTool.GameNotStartedYet"), Color.Red);
+            return;
+        }
+
+        if (Main.netMode == NetmodeID.SinglePlayer)
+        {
+            gm.EndGame();
+        }
+        else if (Main.netMode == NetmodeID.MultiplayerClient)
+        {
+            ModPacket packet = ModContent.GetInstance<PvPAdventure>().GetPacket();
+            packet.Write((byte)AdventurePacketIdentifier.GameManager);
+            packet.Write((byte)GameManagerNetHandler.GameManagerPacketType.EndGame);
+            packet.Send();
+        }
     }
 
     private static string MainActionText()
