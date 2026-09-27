@@ -15,7 +15,8 @@ public static class PortalNetHandler
         PortalCreatorUse,
         PortalHitFx,
         PortalDamageCredit,
-        PortalCreationCancel
+        PortalCreationCancel,
+        PortalCreationResult
     }
 
     public static void HandlePacket(BinaryReader reader, int whoAmI)
@@ -40,13 +41,17 @@ public static class PortalNetHandler
                 ReceivePortalCreationCancel(reader, whoAmI);
                 break;
 
+            case PortalPacketType.PortalCreationResult:
+                ReceivePortalCreationResult(reader);
+                break;
+
             default:
                 Log.Warn($"[Portal] Unknown packet type={(byte)type}");
                 break;
         }
     }
 
-    public static void SendPortalCreationCancel()
+    public static void SendPortalCreationCancel(int requestId)
     {
         if (Main.netMode != NetmodeID.MultiplayerClient)
             return;
@@ -55,12 +60,14 @@ public static class PortalNetHandler
         packet.Write((byte)AdventurePacketIdentifier.UsePortal);
         packet.Write((byte)PortalPacketType.PortalCreationCancel);
         packet.Write((byte)Main.myPlayer);
+        packet.Write(requestId);
         packet.Send();
     }
 
     private static void ReceivePortalCreationCancel(BinaryReader reader, int whoAmI)
     {
         byte playerId = reader.ReadByte();
+        int requestId = reader.ReadInt32();
 
         if (Main.netMode != NetmodeID.Server)
             return;
@@ -71,7 +78,31 @@ public static class PortalNetHandler
             return;
         }
 
-        PortalSystem.ClearCreationProjectiles(playerId);
+        PortalSystem.ClearCreationProjectiles(playerId, requestId);
+    }
+
+    internal static void SendPortalCreationResult(int playerId, int requestId, bool completed)
+    {
+        if (Main.netMode != NetmodeID.Server)
+            return;
+
+        ModPacket packet = ModContent.GetInstance<PvPAdventure>().GetPacket();
+        packet.Write((byte)AdventurePacketIdentifier.UsePortal);
+        packet.Write((byte)PortalPacketType.PortalCreationResult);
+        packet.Write((byte)playerId);
+        packet.Write(requestId);
+        packet.Write(completed);
+        packet.Send();
+    }
+
+    private static void ReceivePortalCreationResult(BinaryReader reader)
+    {
+        int playerId = reader.ReadByte();
+        int requestId = reader.ReadInt32();
+        bool completed = reader.ReadBoolean();
+
+        if (Main.netMode == NetmodeID.MultiplayerClient)
+            PortalSystem.FinishCreationLocally(playerId, requestId, completed);
     }
 
     public static void SendPortalDamageCredit(int npcIndex)
@@ -142,7 +173,7 @@ public static class PortalNetHandler
             portal.PlayHitFxFromNetwork(killed);
     }
 
-    public static void SendPortalCreatorUse(int slot)
+    public static void SendPortalCreatorUse(int slot, int requestId)
     {
         if (!TravelRules.Enabled)
             return;
@@ -150,11 +181,16 @@ public static class PortalNetHandler
         if (Main.netMode != NetmodeID.MultiplayerClient)
             return;
 
+        // These travel over the same ordered connection. Validate against the movement
+        // state that started this attempt, rather than the previous tick's moving state.
+        NetMessage.SendData(MessageID.PlayerControls, -1, -1, null, Main.myPlayer);
+
         ModPacket packet = ModContent.GetInstance<PvPAdventure>().GetPacket();
         packet.Write((byte)AdventurePacketIdentifier.UsePortal);
         packet.Write((byte)PortalPacketType.PortalCreatorUse);
         packet.Write((byte)Main.myPlayer);
         packet.Write((byte)slot);
+        packet.Write(requestId);
         packet.Send();
     }
 
@@ -162,6 +198,7 @@ public static class PortalNetHandler
     {
         byte playerId = reader.ReadByte();
         byte slot = reader.ReadByte();
+        int requestId = reader.ReadInt32();
 
         if (Main.netMode == NetmodeID.Server)
         {
@@ -174,18 +211,20 @@ public static class PortalNetHandler
             if (!TryGetPortalCreator(playerId, slot, out Player player, out _))
             {
                 Log.Chat($"Portal creation request rejected: invalid portal creator request (player={playerId}, slot={slot})");
+                SendPortalCreationResult(playerId, requestId, completed: false);
                 return;
             }
 
             if (!PortalCreatorItem.CanCreatePortal(player, false))
             {
                 Log.Chat($"Portal creation request rejected: player {playerId} failed portal validation");
+                SendPortalCreationResult(playerId, requestId, completed: false);
                 return;
             }
 
             Log.Chat("Portal creation request received");
-            PortalSystem.StartPortalCreation(player);
-            SendPortalCreatorUse(playerId, slot, whoAmI);
+            if (PortalSystem.StartPortalCreation(player, requestId))
+                SendPortalCreatorUse(playerId, slot, requestId, whoAmI);
             return;
         }
 
@@ -196,6 +235,7 @@ public static class PortalNetHandler
             return;
 
         PortalCreatorItem.SetPortalCreationTime(item);
+        remotePlayer.GetModPlayer<PortalPlayer>().CreationAttempt.Track(requestId);
 
         remotePlayer.selectedItem = slot;
         remotePlayer.itemAnimation = item.useAnimation;
@@ -204,13 +244,14 @@ public static class PortalNetHandler
         remotePlayer.itemTimeMax = item.useTime;
     }
 
-    private static void SendPortalCreatorUse(int playerId, int slot, int ignoreClient)
+    private static void SendPortalCreatorUse(int playerId, int slot, int requestId, int ignoreClient)
     {
         ModPacket packet = ModContent.GetInstance<PvPAdventure>().GetPacket();
         packet.Write((byte)AdventurePacketIdentifier.UsePortal);
         packet.Write((byte)PortalPacketType.PortalCreatorUse);
         packet.Write((byte)playerId);
         packet.Write((byte)slot);
+        packet.Write(requestId);
         packet.Send(ignoreClient: ignoreClient);
     }
 

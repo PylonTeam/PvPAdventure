@@ -32,4 +32,9 @@
 
 	<Import Project="Sdk.targets" Sdk="Tomat.Terraria.ModLoader.Sdk" Version="2.1.1" Condition="'$(Configuration)' == 'Debug'" />
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" Condition="'$(Configuration)' != 'Debug'" />
+
+	<!-- Test sources and their generated assembly attributes belong to their own projects. -->
+	<ItemGroup>
+		<Compile Remove="Tests/**/*.cs" />
+	</ItemGroup>
 </Project>

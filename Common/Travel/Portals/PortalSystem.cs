@@ -10,13 +10,13 @@ namespace PvPAdventure.Common.Travel.Portals;
 
 public static class PortalSystem
 {
-    public static void StartPortalCreation(Player player)
+    public static bool StartPortalCreation(Player player, int requestId)
     {
         if (!TravelRules.Enabled)
-            return;
+            return false;
 
         if (player?.active != true || Main.netMode == NetmodeID.MultiplayerClient)
-            return;
+            return false;
 
         RemoveCreationProjectiles(player.whoAmI);
 
@@ -31,19 +31,27 @@ public static class PortalSystem
             ModContent.ProjectileType<PortalCreationProjectile>(),
             0,
             0f,
-            player.whoAmI,
+            // The server creates and destroys this visual. A player-owned identity can
+            // collide with that client's projectiles and echo stale updates back to the server.
+            Main.maxPlayers,
             creationFrames,
-            ownerTeam
+            ownerTeam,
+            player.whoAmI
         );
 
         if (index < 0 || index >= Main.maxProjectiles || Main.projectile[index].ModProjectile is not PortalCreationProjectile creation)
-            return;
+        {
+            FinishCreation(player.whoAmI, requestId, completed: false);
+            return false;
+        }
 
-        creation.Initialize(worldPos, creationFrames, ownerTeam);
+        creation.Initialize(worldPos, creationFrames, ownerTeam, requestId);
         //Log.Chat($"Portal creation at {worldPos}, team={ownerTeam}, frames={creationFrames}");
 
         if (Main.netMode == NetmodeID.Server)
             NetMessage.SendData(MessageID.SyncProjectile, -1, -1, null, index);
+
+        return true;
     }
 
     public static bool CreateOrReplacePortal(Player owner, Vector2 worldPos)
@@ -81,12 +89,51 @@ public static class PortalSystem
         ClearCreationProjectiles(ownerIndex);
     }
 
-    public static void ClearCreationProjectiles(int ownerIndex)
+    public static void ClearCreationProjectiles(int ownerIndex, int? requestId = null)
     {
         if (Main.netMode == NetmodeID.MultiplayerClient)
             return;
 
-        RemoveCreationProjectiles(ownerIndex);
+        RemoveCreationProjectiles(ownerIndex, requestId);
+    }
+
+    internal static void FinishCreation(int ownerIndex, int requestId, bool completed)
+    {
+        if (Main.netMode == NetmodeID.Server)
+            PortalNetHandler.SendPortalCreationResult(ownerIndex, requestId, completed);
+        else
+            FinishCreationLocally(ownerIndex, requestId, completed);
+    }
+
+    internal static void FinishCreationLocally(int ownerIndex, int requestId, bool completed)
+    {
+        if (Main.netMode == NetmodeID.Server || ownerIndex < 0 || ownerIndex >= Main.maxPlayers)
+            return;
+
+        // Use the attempt ID, not an array slot: packets can arrive after a cancel/retry.
+        for (int i = 0; i < Main.maxProjectiles; i++)
+        {
+            Projectile projectile = Main.projectile[i];
+            if (projectile?.active == true && projectile.ModProjectile is PortalCreationProjectile creation &&
+                creation.OwnerIndex == ownerIndex && creation.RequestId == requestId)
+            {
+                // Only remove the visual locally. Never send a client KillProjectile for it.
+                projectile.active = false;
+            }
+        }
+
+        Player player = Main.player[ownerIndex];
+        if (player?.active != true || !player.GetModPlayer<PortalPlayer>().CreationAttempt.Finish(requestId))
+            return;
+
+        if (player.HeldItem?.ModItem is PortalCreatorItem)
+            PortalCreatorItem.ResetUseState(player);
+
+        if (!completed && ownerIndex == Main.myPlayer)
+        {
+            PortalCreatorItem.Warning(player, "Mods.PvPAdventure.PortalCreator.Cancelled");
+            TravelTeleportSystem.ClearSelection();
+        }
     }
 
     public static IEnumerable<PortalNPC> ActivePortals()
@@ -116,6 +163,9 @@ public static class PortalSystem
         if (player?.active != true)
             return false;
 
+        if (player.GetModPlayer<PortalPlayer>().CreationAttempt.Pending)
+            return true;
+
         if (player.itemAnimation > 0 && player.HeldItem?.ModItem is PortalCreatorItem)
             return true;
 
@@ -131,7 +181,7 @@ public static class PortalSystem
         {
             Projectile projectile = Main.projectile[i];
 
-            if (projectile?.active == true && projectile.owner == ownerIndex && projectile.ModProjectile is PortalCreationProjectile)
+            if (projectile?.active == true && projectile.ModProjectile is PortalCreationProjectile creation && creation.OwnerIndex == ownerIndex)
                 return true;
         }
 
@@ -155,19 +205,17 @@ public static class PortalSystem
         }
     }
 
-    private static void RemoveCreationProjectiles(int ownerIndex)
+    private static void RemoveCreationProjectiles(int ownerIndex, int? requestId = null)
     {
         for (int i = 0; i < Main.maxProjectiles; i++)
         {
             Projectile projectile = Main.projectile[i];
 
-            if (projectile?.active != true || projectile.owner != ownerIndex || projectile.ModProjectile is not PortalCreationProjectile)
+            if (projectile?.active != true || projectile.ModProjectile is not PortalCreationProjectile creation ||
+                creation.OwnerIndex != ownerIndex || (requestId.HasValue && creation.RequestId != requestId.Value))
                 continue;
 
-            projectile.Kill();
-
-            if (Main.netMode == NetmodeID.Server)
-                NetMessage.SendData(MessageID.KillProjectile, -1, -1, null, projectile.identity, projectile.owner);
+            creation.Finish(completed: false);
         }
     }
 }

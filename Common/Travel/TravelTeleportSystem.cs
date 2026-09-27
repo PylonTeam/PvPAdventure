@@ -86,7 +86,7 @@ internal class TravelTeleportSystem : ModSystem
         if (ModContent.GetInstance<GameManager>().CurrentPhase == GameManager.Phase.Waiting)
             return false;
 
-        return player.dead || TravelRegions.CanUseTravelUI(player) || IsUsingPortalCreator(player);
+        return player.dead || TravelRegions.CanUseTravelUI(player) || PortalSystem.IsCreatingPortal(player);
     }
 
     public static bool ShouldUseDeathTravelSelection(Player player)
@@ -169,7 +169,7 @@ internal class TravelTeleportSystem : ModSystem
         if (player.dead || player.ghost)
             return;
 
-        if (IsUsingPortalCreator(player) && PortalCreatorFramesLeft(player) > 0)
+        if (IsWaitingForPortalCreator(player))
             return;
 
         if (!TryGetTarget(player, selectedTarget.Type, selectedTarget.PlayerIndex, out TravelTarget current) || !current.Available)
@@ -314,7 +314,8 @@ internal class TravelTeleportSystem : ModSystem
 
     public static bool IsWaitingForPortalCreator(Player player)
     {
-        return PortalCreatorFramesLeft(player) > 0;
+        return player?.active == true && player.GetModPlayer<PortalPlayer>().CreationAttempt.Pending ||
+            PortalCreatorFramesLeft(player) > 0;
     }
 
     private static bool IsUsingPortalCreator(Player player)

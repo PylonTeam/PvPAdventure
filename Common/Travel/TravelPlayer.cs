@@ -24,20 +24,13 @@ internal class TravelPlayer : ModPlayer
         if (Player.whoAmI != Main.myPlayer)
             return;
 
-        if (!IsUsingPortalCreator())
+        if (!PortalSystem.IsCreatingPortal(Player))
             return;
 
         if (!ShouldCancelPortalUse(info))
             return;
 
-        PortalCreatorItem.ResetUseState(Player);
-
-        PortalCreatorItem.Warning(Player, "Mods.PvPAdventure.PortalCreator.Cancelled", Color.Crimson);
-    }
-
-    private bool IsUsingPortalCreator()
-    {
-        return Player.itemTime > 0 && Player.HeldItem?.ModItem is PortalCreatorItem;
+        Player.GetModPlayer<PortalPlayer>().CancelCreation();
     }
 
     private static bool ShouldCancelPortalUse(Player.HurtInfo info)

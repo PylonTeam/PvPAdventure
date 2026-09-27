@@ -9,6 +9,37 @@ namespace PvPAdventure.Common.Travel.Portals;
 
 internal sealed class PortalPlayer : ModPlayer
 {
+    internal PortalCreationAttempt CreationAttempt { get; private set; } = new();
+
+    public override void OnEnterWorld() => CreationAttempt = new();
+
+    public override void PostUpdate()
+    {
+        if (Player.whoAmI == Main.myPlayer && CreationAttempt.Pending &&
+            (Player.dead || Player.ghost || PortalCreatorItem.IsPortalCreationInterrupted(Player)))
+        {
+            CancelCreation();
+        }
+    }
+
+    internal void CancelCreation()
+    {
+        int requestId = CreationAttempt.RequestId;
+        if (!CreationAttempt.Pending)
+            return;
+
+        if (Main.netMode == NetmodeID.MultiplayerClient)
+        {
+            // Clear the prediction immediately, even if the spawn packet has not arrived yet.
+            PortalSystem.FinishCreationLocally(Player.whoAmI, requestId, completed: false);
+            PortalNetHandler.SendPortalCreationCancel(requestId);
+        }
+        else
+        {
+            PortalSystem.ClearCreationProjectiles(Player.whoAmI, requestId);
+        }
+    }
+
     public override bool CanHitNPC(NPC target)
     {
         if (IsFriendlyPortalTarget(Player, target))
@@ -41,17 +72,9 @@ internal sealed class PortalPlayer : ModPlayer
         if (Main.netMode == NetmodeID.MultiplayerClient && Player.whoAmI != Main.myPlayer)
             return;
 
-        PortalCreatorItem.ResetUseState(Player);
-
         if (Player.whoAmI == Main.myPlayer)
-        {
-            PortalCreatorItem.Warning(Player, "Mods.PvPAdventure.PortalCreator.Cancelled");
-            TravelTeleportSystem.ClearSelection();
-        }
-
-        if (Main.netMode == NetmodeID.MultiplayerClient)
-            PortalNetHandler.SendPortalCreationCancel();
-        else
+            CancelCreation();
+        else if (Main.netMode != NetmodeID.MultiplayerClient)
             PortalSystem.ClearCreationProjectiles(Player.whoAmI);
     }
 

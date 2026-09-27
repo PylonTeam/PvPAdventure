@@ -76,10 +76,11 @@ public class PortalCreatorItem : ModItem
         if (!CanCreatePortal(player, true))
             return false;
 
+        int requestId = player.GetModPlayer<PortalPlayer>().CreationAttempt.Begin();
         if (Main.netMode == NetmodeID.MultiplayerClient)
-            PortalNetHandler.SendPortalCreatorUse(player.selectedItem);
+            PortalNetHandler.SendPortalCreatorUse(player.selectedItem, requestId);
         else
-            PortalSystem.StartPortalCreation(player);
+            PortalSystem.StartPortalCreation(player, requestId);
 
         return true;
     }
@@ -189,10 +190,7 @@ public class PortalCreatorItem : ModItem
         if (IsPortalCreationInterrupted(player))
         {
             if (player.whoAmI == Main.myPlayer)
-            {
-                Warning(player, "Mods.PvPAdventure.PortalCreator.Cancelled");
-                TravelTeleportSystem.ClearSelection();
-            }
+                player.GetModPlayer<PortalPlayer>().CancelCreation();
 
             ResetUseState(player);
             return;

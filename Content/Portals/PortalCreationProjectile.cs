@@ -1,8 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using PvPAdventure.Common.Travel.Portals;
-using PvPAdventure.Core.Config;
-using PvPAdventure.Core.Utilities;
 using System;
 using System.IO;
 using Terraria;
@@ -16,6 +14,11 @@ namespace PvPAdventure.Content.Portals;
 /// </summary>
 public sealed class PortalCreationProjectile : ModProjectile
 {
+    // Let an in-flight result arrive, but never leave a fully formed phantom behind.
+    private const int ResultWaitFrames = 120;
+    public int OwnerIndex => (int)Projectile.ai[2];
+    public int RequestId { get; private set; }
+
     public override string Texture => "PvPAdventure/Assets/Portals/Portal_NoTeam";
     private float OutlineOpacityProgress => MathHelper.Clamp(ElapsedFrames / 12f, 0f, 1f);
     private float OutlineScaleProgress => MathHelper.Clamp(ElapsedFrames / 22f, 0f, 1f);
@@ -40,13 +43,15 @@ public sealed class PortalCreationProjectile : ModProjectile
     }
 
     private float Progress => CreationFrames <= 0 ? 1f : MathHelper.Clamp(ElapsedFrames / CreationFrames, 0f, 1f);
-    private float Opacity => MathHelper.Lerp(0f, 1f, Progress);
+    private float Opacity => MathHelper.Lerp(0f, 0.75f, Progress);
 
-    public void Initialize(Vector2 worldPos, int creationFrames, int ownerTeam)
+    public void Initialize(Vector2 worldPos, int creationFrames, int ownerTeam, int requestId)
     {
         CreationFrames = creationFrames;
         OwnerTeam = ownerTeam;
         ElapsedFrames = 0f;
+        RequestId = requestId;
+        Projectile.timeLeft = CreationFrames + ResultWaitFrames;
 
         Projectile.position = worldPos - new Vector2(Projectile.width * 0.5f, Projectile.height);
         Projectile.netUpdate = true;
@@ -56,12 +61,17 @@ public sealed class PortalCreationProjectile : ModProjectile
     {
         writer.Write(CreationFrames);
         writer.Write(OwnerTeam);
+        writer.Write(RequestId);
+        writer.Write(ElapsedFrames);
     }
 
     public override void ReceiveExtraAI(BinaryReader reader)
     {
         CreationFrames = reader.ReadInt32();
         OwnerTeam = reader.ReadInt32();
+        RequestId = reader.ReadInt32();
+        ElapsedFrames = reader.ReadSingle();
+        Projectile.timeLeft = Math.Max(1, CreationFrames - (int)ElapsedFrames + ResultWaitFrames);
     }
 
     public override void SetDefaults()
@@ -80,13 +90,23 @@ public sealed class PortalCreationProjectile : ModProjectile
 
     public override void AI()
     {
-        var config = ModContent.GetInstance<ServerConfig>().TravelSystem;
-
         Projectile.velocity = Vector2.Zero;
         bool firstFrame = ElapsedFrames <= 0f;
 
-        if (ElapsedFrames < CreationFrames)
-            ElapsedFrames++;
+        ElapsedFrames++;
+
+        if (Main.netMode == NetmodeID.MultiplayerClient)
+        {
+            bool staleAttempt = OwnerIndex == Main.myPlayer &&
+                !Main.LocalPlayer.GetModPlayer<PortalPlayer>().CreationAttempt.IsPending(RequestId);
+            if (staleAttempt || ElapsedFrames >= CreationFrames + ResultWaitFrames)
+            {
+                Projectile.active = false;
+                if (!staleAttempt)
+                    PortalSystem.FinishCreationLocally(OwnerIndex, RequestId, completed: false);
+                return;
+            }
+        }
 
         if (Main.netMode != NetmodeID.Server)
         {
@@ -101,20 +121,14 @@ public sealed class PortalCreationProjectile : ModProjectile
 
         if (!TryGetOwner(out Player owner) || owner.dead || owner.ghost || PortalCreatorItem.IsPortalCreationInterrupted(owner))
         {
-            KillAndSync();
+            Finish(completed: false);
             return;
         }
 
         if (ElapsedFrames < CreationFrames)
             return;
 
-        if (!PortalSystem.CreateOrReplacePortal(owner, Projectile.Bottom))
-        {
-            KillAndSync();
-            return;
-        }
-
-        KillAndSync();
+        Finish(PortalSystem.CreateOrReplacePortal(owner, Projectile.Bottom));
     }
 
     public override bool PreDraw(ref Color lightColor)
@@ -134,27 +148,21 @@ public sealed class PortalCreationProjectile : ModProjectile
         // Draw portal
         Main.spriteBatch.Draw(texture, position, frame, Color.White * Opacity, Projectile.rotation, origin, Projectile.scale, SpriteEffects.None, 0f);
 
-        int visibleHealth = Math.Max(1, (int)(PortalNPC.PortalMaxHealth * Progress));
+        int visibleHealth = Math.Clamp((int)(PortalNPC.PortalMaxHealth * Progress), 1, PortalNPC.PortalMaxHealth - 1);
         PortalDrawer.DrawPortalHealthBar(Main.spriteBatch, Projectile.Center + new Vector2(0f, 24f * Projectile.scale), visibleHealth, PortalNPC.PortalMaxHealth, Projectile.scale, HealthBarOpacity);
 
         return false;
     }
 
-    public void Initialize(Vector2 worldPos)
-    {
-        Projectile.position = worldPos - new Vector2(Projectile.width * 0.5f, Projectile.height);
-        Projectile.netUpdate = true;
-    }
-
     private bool TryGetOwner(out Player owner)
     {
-        owner = Projectile.owner >= 0 && Projectile.owner < Main.maxPlayers ? Main.player[Projectile.owner] : null;
+        owner = OwnerIndex >= 0 && OwnerIndex < Main.maxPlayers ? Main.player[OwnerIndex] : null;
         return owner?.active == true;
     }
 
-    private void KillAndSync()
+    internal void Finish(bool completed)
     {
-        if (!Projectile.active)
+        if (!Projectile.active || Main.netMode == NetmodeID.MultiplayerClient)
             return;
 
         int identity = Projectile.identity;
@@ -165,6 +173,8 @@ public sealed class PortalCreationProjectile : ModProjectile
 
         if (Main.netMode == NetmodeID.Server)
             NetMessage.SendData(MessageID.KillProjectile, -1, -1, null, identity, owner);
+
+        PortalSystem.FinishCreation(OwnerIndex, RequestId, completed);
     }
 
 }
