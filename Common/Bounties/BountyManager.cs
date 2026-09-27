@@ -519,23 +519,26 @@ public class BountyManager : ModSystem
 
     public override void NetReceive(BinaryReader reader)
     {
-        _bounties.Clear();
+        var snapshot = new Dictionary<Team, IList<Page>>();
 
-        var numberOfTeams = reader.ReadInt32();
+        var numberOfTeams = WorldSyncReader.ReadCount(reader, 8, Enum.GetValues<Team>().Length);
         for (var i = 0; i < numberOfTeams; i++)
         {
-            var team = (Team)reader.ReadInt32();
-            var numberOfPages = reader.ReadInt32();
+            var team = WorldSyncReader.ReadTeam(reader);
+            var numberOfPages = WorldSyncReader.ReadCount(reader, sizeof(int));
             var pages = new List<Page>();
+            if (!snapshot.TryAdd(team, pages))
+                throw new IOException("Duplicate bounty team in Adventure world sync.");
 
             for (var j = 0; j < numberOfPages; j++)
             {
-                var numberOfBounties = reader.ReadInt32();
+                var numberOfBounties = WorldSyncReader.ReadCount(reader, sizeof(int));
                 var page = new Page(new List<Item[]>());
 
                 for (var k = 0; k < numberOfBounties; k++)
                 {
-                    var numberOfItems = reader.ReadInt32();
+                    // Every ItemIO item occupies at least its Int16 net ID.
+                    var numberOfItems = WorldSyncReader.ReadCount(reader, sizeof(short));
                     var items = new Item[numberOfItems];
 
                     for (var l = 0; l < numberOfItems; l++)
@@ -546,13 +549,18 @@ public class BountyManager : ModSystem
 
                 pages.Add(page);
             }
-
-            _bounties[team] = pages;
         }
 
-        TransactionId = reader.ReadInt32();
+        int transactionId = reader.ReadInt32();
+        WorldSyncReader.EnsureComplete(reader);
+        foreach (Team team in Enum.GetValues<Team>())
+            snapshot.TryAdd(team, new List<Page>());
 
-        UiBountyShop.Invalidate();
+        _bounties.Clear();
+        foreach (var (team, pages) in snapshot)
+            _bounties.Add(team, pages);
+        TransactionId = transactionId;
+        UiBountyShop?.Invalidate();
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using PvPAdventure.Core.Net;
 using Terraria;
 using Terraria.Chat;
 using Terraria.ID;
@@ -67,10 +68,16 @@ namespace PvPAdventure.Common.World
 
         public override void NetReceive(System.IO.BinaryReader reader)
         {
-            WorldDay = reader.ReadInt32();
-            _hardmodeStarted = reader.ReadBoolean();
-            _planteraDowned = reader.ReadBoolean();
-            _golemDowned = reader.ReadBoolean();
+            int worldDay = reader.ReadInt32();
+            bool hardmodeStarted = reader.ReadBoolean();
+            bool planteraDowned = reader.ReadBoolean();
+            bool golemDowned = reader.ReadBoolean();
+            WorldSyncReader.EnsureComplete(reader);
+
+            WorldDay = worldDay;
+            _hardmodeStarted = hardmodeStarted;
+            _planteraDowned = planteraDowned;
+            _golemDowned = golemDowned;
         }
 
         public override void PostUpdateWorld()

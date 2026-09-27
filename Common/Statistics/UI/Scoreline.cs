@@ -121,11 +121,13 @@ public class Scoreline : ModSystem
                     new((Main.screenWidth / 2) - (timerWidth / 2) + offset, 0, pointWidth, pointHeight),
                     Main.teamColor[(int)team] * 0.7f * _colorModulate);
 
-                var text = ModContent.GetInstance<PointsManager>().Points[team].ToString();
+                var text = ModContent.GetInstance<PointsManager>().Points.TryGetValue(team, out int points)
+                    ? points.ToString()
+                    : "—";
                 var metrics = ChatManager.GetStringSize(FontAssets.MouseText.Value, text, Vector2.One * scale);
                 ChatManager.DrawColorCodedStringWithShadow(Main.spriteBatch,
                     FontAssets.MouseText.Value,
-                    ModContent.GetInstance<PointsManager>().Points[team].ToString(),
+                    text,
                     new((int)((Main.screenWidth / 2.0f) + offset - (pointWidth / 2.0f) - (metrics.X / 2)), 6f * scale),
                     Color.White * _colorModulate,
                     0.0f,

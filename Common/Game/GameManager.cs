@@ -3,6 +3,7 @@ using PvPAdventure.Common.Game.GameReporters;
 using PvPAdventure.Common.Game.MatchReplays;
 using PvPAdventure.Common.Game.StatTrackers;
 using PvPAdventure.Common.Statistics;
+using PvPAdventure.Core.Net;
 using PvPFramework.Common.EndScreen;
 using PvPFramework.Common.Scoreboard;
 using System;
@@ -665,11 +666,15 @@ public class GameManager : ModSystem
 
     public override void NetReceive(BinaryReader reader)
     {
-        TimeRemaining = reader.ReadInt32();
-        CurrentPhase = (Phase)reader.ReadInt32();
-        if (reader.ReadBoolean())
-            _startGameCountdown = reader.ReadInt32();
-        else
-            _startGameCountdown = null;
+        int timeRemaining = reader.ReadInt32();
+        Phase phase = (Phase)reader.ReadInt32();
+        int? countdown = reader.ReadBoolean() ? reader.ReadInt32() : null;
+        WorldSyncReader.EnsureComplete(reader);
+        if (!Enum.IsDefined(phase))
+            throw new IOException("Invalid match phase in Adventure world sync.");
+
+        TimeRemaining = timeRemaining;
+        _startGameCountdown = countdown;
+        CurrentPhase = phase;
     }
 }

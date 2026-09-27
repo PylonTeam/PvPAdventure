@@ -5,6 +5,7 @@ using PvPAdventure.Common.Game.StatTrackers;
 using BossDisplaySettings = PvPFramework.Common.NPCs.BossDisplaySettings;
 using PvPAdventure.Common.NPCs;
 using PvPAdventure.Core.Config;
+using PvPAdventure.Core.Net;
 using PvPFramework.Common.Scoreboard;
 using System;
 using System.Collections.Generic;
@@ -145,28 +146,47 @@ public class PointsManager : ModSystem
 
     public override void NetReceive(BinaryReader reader)
     {
-        _points.Clear();
-        _downedNpcs.Clear();
+        // Keep the previous snapshot intact if any part of this packet is invalid.
+        var pointsSnapshot = new Dictionary<Team, int>();
+        var downedSnapshot = new Dictionary<Team, ISet<short>>();
+        int teamCount = Enum.GetValues<Team>().Length;
 
-        var numberOfPointEntries = reader.ReadInt32();
+        var numberOfPointEntries = WorldSyncReader.ReadCount(reader, 8, teamCount);
         for (var i = 0; i < numberOfPointEntries; i++)
         {
-            var team = (Team)reader.ReadInt32();
+            var team = WorldSyncReader.ReadTeam(reader);
             var points = reader.ReadInt32();
-            _points[team] = points;
+            if (!pointsSnapshot.TryAdd(team, points))
+                throw new IOException("Duplicate points team in Adventure world sync.");
         }
 
-        var numberOfDownedNpcsEntries = reader.ReadInt32();
+        var numberOfDownedNpcsEntries = WorldSyncReader.ReadCount(reader, 8, teamCount);
         for (var i = 0; i < numberOfDownedNpcsEntries; i++)
         {
-            var team = (Team)reader.ReadInt32();
-            _downedNpcs[team] = new HashSet<short>();
+            var team = WorldSyncReader.ReadTeam(reader);
+            var downedNpcs = new HashSet<short>();
+            if (!downedSnapshot.TryAdd(team, downedNpcs))
+                throw new IOException("Duplicate boss-completion team in Adventure world sync.");
 
-            var numberOfIdEntries = reader.ReadInt32();
+            var numberOfIdEntries = WorldSyncReader.ReadCount(reader, sizeof(short));
             for (var j = 0; j < numberOfIdEntries; j++)
-                _downedNpcs[team].Add(reader.ReadInt16());
+                downedNpcs.Add(reader.ReadInt16());
         }
 
+        WorldSyncReader.EnsureComplete(reader);
+        int startingPoints = ModContent.GetInstance<ServerConfig>().Points.TeamStartingPoints;
+        foreach (Team team in Enum.GetValues<Team>())
+        {
+            pointsSnapshot.TryAdd(team, team == Team.None ? 0 : startingPoints);
+            downedSnapshot.TryAdd(team, new HashSet<short>());
+        }
+
+        _points.Clear();
+        foreach (var (team, points) in pointsSnapshot)
+            _points.Add(team, points);
+        _downedNpcs.Clear();
+        foreach (var (team, downedNpcs) in downedSnapshot)
+            _downedNpcs.Add(team, downedNpcs);
     }
 
     public override void ModifyInterfaceLayers(
@@ -413,7 +433,7 @@ public class PointsManager : ModSystem
                     if (team == Team.None)
                         continue;
 
-                    if (!pointsManager.DownedNpcs[team].Contains(bossId))
+                    if (!pointsManager.DownedNpcs.TryGetValue(team, out var downedNpcs) || !downedNpcs.Contains(bossId))
                         continue;
 
                     Main.spriteBatch.Draw(teamIconsTexture, nextTeamIconPosition,
