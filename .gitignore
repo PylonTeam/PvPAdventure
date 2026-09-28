@@ -1,6 +1,11 @@
-.idea
-.vs
-bin
-obj
-*.user
+# Ignore Visual Studio temporary files
+/.idea
+/.vs
+
+# Ignore build output directories
+/bin
+/obj
+
+# Ignore tests and docs folders
 /Tests
+/Docs
