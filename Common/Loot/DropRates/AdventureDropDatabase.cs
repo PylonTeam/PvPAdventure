@@ -467,6 +467,9 @@ public static class AdventureDropDatabase
             case NPCID.SkeletronHand:
                 npcLoot.Add(ItemDropRule.Common(ItemID.Bone, 1, 1, 3));
                 break;
+            case NPCID.SnowFlinx:
+                npcLoot.Add(ItemDropRule.Common(ItemID.FlinxFur, 1, 1, 1));
+                break;
             case NPCID.Mimic:
                 npcLoot.RemoveWhere(drop => drop is LeadingConditionRule);
 

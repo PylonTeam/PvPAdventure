@@ -81,56 +81,6 @@ Mods: {
 		}
 
 		Buffs: {
-			Anathema: {
-				DisplayName: Anathema
-				Description: Enemy attacks can seek you out
-			}
-
-			Attuning: {
-				DisplayName: Attuning
-				Description: Your Spectre armor is attuning to your magic & mind!
-			}
-
-			BitingEmbrace: {
-				DisplayName: Summon Tagged
-				Description: Take 7 more damage from enemies
-			}
-
-			BrittleBones: {
-				DisplayName: Summon Tagged
-				Description: Take 6 more damage from enemies
-			}
-
-			BROISACHOJ: {
-				DisplayName: Encumbered
-				Description: Heavy armor slows your dash
-			}
-
-			Hellhex: {
-				DisplayName: Firecracked
-				Description: You are going to burst with hellfire at any moment!
-			}
-
-			Marked: {
-				DisplayName: Summon Tagged
-				Description: Take 9 more damage from enemiesTake 9 more damage from enemies
-			}
-
-			NewIchorPlayerDebuff: {
-				DisplayName: Ichor
-				Description: Defense reduced by one third
-			}
-
-			PressurePoints: {
-				DisplayName: Summon Tagged
-				Description: Take 6 more damage from enemies
-			}
-
-			ShatteredArmor: {
-				DisplayName: Shattered Armor
-				Description: You're armor has been shattered by a brutal blow!
-			}
-
 			ShinyStoneHotswap: {
 				DisplayName: Shiny Stone Hotswap
 				Description: Shiny Stone is charging up!
@@ -149,6 +99,21 @@ Mods: {
 			GodsProtection: {
 				DisplayName: Holy Protection
 				Description: God's right hand is holding your soul tightly
+			}
+
+			Attuning: {
+				DisplayName: Attuning
+				Description: Mods.PvPAdventure.Buffs.Attuning.Description
+			}
+
+			BROISACHOJ: {
+				DisplayName: B R O I S A C H O J
+				Description: Mods.PvPAdventure.Buffs.BROISACHOJ.Description
+			}
+
+			NewIchorPlayerDebuff: {
+				DisplayName: New Ichor Player Debuff
+				Description: Mods.PvPAdventure.Buffs.NewIchorPlayerDebuff.Description
 			}
 		}
 

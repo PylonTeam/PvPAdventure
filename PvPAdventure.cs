@@ -51,10 +51,6 @@ public class PvPAdventure : Mod
                 Common.Game.StatTrackers.MatchStatsNetHandler.HandleSnapshotPacket(reader);
                 break;
 
-            case AdventurePacketIdentifier.Hellhex:
-                Common.Combat.EJ.HellhexNetHandler.HandlePacket(reader, whoAmI);
-                break;
-
             case AdventurePacketIdentifier.ShakingChest:
                 Common.NPCs.ShakingChestNetHandler.HandlePacket(reader);
                 break;

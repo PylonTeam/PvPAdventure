@@ -41,7 +41,8 @@ public class RecipeManager : ModSystem
             ItemID.SnailStatue,
             ItemID.FrogStatue,
             ItemID.DuckStatue,
-            ItemID.ManaCrystal
+            ItemID.ManaCrystal,
+            ItemID.DeerThing
 
 
         };
@@ -225,6 +226,11 @@ public class RecipeManager : ModSystem
         .AddTile(TileID.TinkerersWorkbench)
         .Register();
 
-
+        // Recipe for DeerThing
+        Recipe.Create(ItemID.DeerThing, 1)
+            .AddIngredient(ItemID.DemoniteOre, 5)
+            .AddIngredient(ItemID.Lens, 1)
+            .AddIngredient(ItemID.FlinxFur, 3)
+            .Register();
     }
 }

@@ -30,7 +30,7 @@ public class HeavyArmorPlayer : ModPlayer
         {
             //Player.AddBuff(ModContent.BuffType<BROISACHOJ>(), 1 * 60 * 60);
 
-            Player.GetAttackSpeed<MeleeDamageClass>() -= 0.3f;
+            Player.GetAttackSpeed<MeleeDamageClass>() -= 0.2f;
         }
     }
 
