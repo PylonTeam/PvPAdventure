@@ -32,13 +32,12 @@ public sealed class ServerConfig : ModConfig
     public ShakingChestConfig ShakingChest = new();
 
     [ConfigIcon(nameof(Ass.ConfigBed), placement: ConfigIconPlacement.Inside)]
-    [BackgroundColor(36, 108, 116)]
+    [BackgroundColor(205, 110, 60)]
     [Expand(false, false)]
     public TravelSystemConfig TravelSystem = new();
 
-
     [ConfigIcon(ItemID.FuzzyCarrot, placement: ConfigIconPlacement.Inside)]
-    [BackgroundColor(36, 108, 116)]
+    [BackgroundColor(205, 110, 60)]
     [Expand(false, false)]
     public RacePeriodConfig RacePeriod = new();
 

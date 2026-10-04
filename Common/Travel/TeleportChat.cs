@@ -1,5 +1,4 @@
 using Microsoft.Xna.Framework;
-using PvPAdventure.Core.Config;
 using PvPAdventure.Core.Utilities;
 using System;
 using Terraria;
@@ -7,7 +6,6 @@ using Terraria.Chat;
 using Terraria.GameContent.Bestiary;
 using Terraria.ID;
 using Terraria.Localization;
-using Terraria.ModLoader;
 using static Terraria.GameContent.Bestiary.BestiaryDatabaseNPCsPopulator.CommonTags.SpawnConditions;
 
 namespace PvPAdventure.Common.Travel;
@@ -65,11 +63,6 @@ public static class TeleportChat
 
     public static void Announce(Player player, TravelType type, int targetIdx = -1)
     {
-        var clientConfig = ModContent.GetInstance<ClientConfig>();
-
-        if (!clientConfig.ShowTeleportPlayerMessages)
-            return;
-
         if (player?.active != true)
             return;
 
@@ -85,11 +78,6 @@ public static class TeleportChat
 
     public static void AnnouncePortalDestroyed(Player owner, string fallbackOwnerName)
     {
-        var clientConfig = ModContent.GetInstance<ClientConfig>();
-
-        if (!clientConfig.ShowTeleportPlayerMessages)
-            return;
-
         if (owner?.active != true)
             return;
 
@@ -103,9 +91,6 @@ public static class TeleportChat
 
     public static void AnnounceBedDestroyed(Player owner, string fallbackOwnerName)
     {
-        var clientConfig = ModContent.GetInstance<ClientConfig>();
-        if (!clientConfig.ShowTeleportPlayerMessages)
-            return;
         if (owner?.active != true)
             return;
         string name = !string.IsNullOrWhiteSpace(fallbackOwnerName) ? fallbackOwnerName : owner.name;
@@ -116,11 +101,6 @@ public static class TeleportChat
 
     public static void AnnounceBedSet(Player player)
     {
-        var clientConfig = ModContent.GetInstance<ClientConfig>();
-
-        if (!clientConfig.ShowTeleportPlayerMessages)
-            return;
-
         if (player?.active != true)
             return;
 
@@ -132,11 +112,6 @@ public static class TeleportChat
 
     public static void AnnouncePortalOpened(Player player)
     {
-        var clientConfig = ModContent.GetInstance<ClientConfig>();
-
-        if (!clientConfig.ShowTeleportPlayerMessages)
-            return;
-
         if (player?.active != true)
             return;
 

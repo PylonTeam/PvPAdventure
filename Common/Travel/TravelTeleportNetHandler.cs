@@ -150,10 +150,7 @@ public static class TravelTeleportNetHandler
         SendTeleportSound(player.Center);
         TravelTeleportSystem.StartTeleportCooldown(player);
 
-        if (ModContent.GetInstance<ClientConfig>().ShowTeleportPlayerMessages)
-        {
-            TeleportChat.Announce(player, type, targetPlayerIndex);
-        }
+        TeleportChat.Announce(player, type, targetPlayerIndex);
 
         //Log.Chat($"[TravelTeleport] Teleported {player.name}: type={type}, target={targetPlayerIndex}, pos={position}");
     }

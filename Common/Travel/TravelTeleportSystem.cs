@@ -77,9 +77,6 @@ internal class TravelTeleportSystem : ModSystem
 
     public static bool ShouldShowTravelUI(Player player)
     {
-        if (!ModContent.GetInstance<ClientConfig>().TravelUI)
-            return false;
-
         if (player?.active != true || player.ghost)
             return false;
 

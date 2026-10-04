@@ -32,7 +32,7 @@ public class Scoreline : ModSystem
         protected override bool DrawSelf()
         {
             ClientConfig config = ModContent.GetInstance<ClientConfig>();
-            if (Main.gameMenu || !config.Scoreline || !ModContent.GetInstance<GameManager>().IsSelected) return true;
+            if (Main.gameMenu || !ModContent.GetInstance<GameManager>().IsSelected) return true;
 
             float scale = config.ScorelineUISize switch
             {

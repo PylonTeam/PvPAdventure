@@ -220,16 +220,14 @@ Mods: {
 				DisplayName: Adventure Client Config
 
 				ShowSpawnMountWarnings: {
-					Label: Spawn Mount Warnings
+					Label: Mounts
 					Tooltip: Show a warning when trying to change mount or use a hook while waiting in the race entry area
 				}
 
 				Headers: {
-					Visualization: Visualization
-					Movement: Movement
-					UI: UI
-					Sound: Sound
-					Chat: Chat
+					Display: Display
+					Warnings: Warnings
+					Debug: Debug
 				}
 
 				Outlines: {
@@ -252,11 +250,6 @@ Mods: {
 					Tooltip: Whether double tapping a movement direction will cause a dash
 				}
 
-				TravelUI: {
-					Label: Travel UI
-					Tooltip: Show the travel destination interface
-				}
-
 				PortalTravelUIPosition: {
 					Label: Travel UI Position
 					Tooltip: ""
@@ -268,13 +261,8 @@ Mods: {
 				}
 
 				ShowPortalWarnings: {
-					Label: Portal Warnings
+					Label: Portals
 					Tooltip: Show warnings and status messages related to portals
-				}
-
-				Scoreline: {
-					Label: Scoreline
-					Tooltip: Show team scores and the match timer at the top of the screen
 				}
 
 				ScorelineUISize: {
@@ -285,11 +273,6 @@ Mods: {
 				SoundEffect: {
 					Label: Sound Effect
 					Tooltip: ""
-				}
-
-				ShowTeleportPlayerMessages: {
-					Label: Show Travel Teleport Messages
-					Tooltip: Shows portal travel messages, including creation, destruction and teleportation.
 				}
 
 				ShowDebugMessages: {
