@@ -26,10 +26,21 @@ public sealed class ServerConfig : ModConfig
     public BountiesConfig Bounties = new();
 
     [Header("Gameplay")]
-    [ConfigIcon(ItemID.GoldChest, placement: ConfigIconPlacement.Cut)]
+    [ConfigIcon(ItemID.GoldChest, placement: ConfigIconPlacement.Inside)]
     [BackgroundColor(205, 110, 60)]
     [Expand(false, false)]
     public ShakingChestConfig ShakingChest = new();
+
+    [ConfigIcon(nameof(Ass.ConfigBed), placement: ConfigIconPlacement.Inside)]
+    [BackgroundColor(36, 108, 116)]
+    [Expand(false, false)]
+    public TravelSystemConfig TravelSystem = new();
+
+
+    [ConfigIcon(ItemID.FuzzyCarrot, placement: ConfigIconPlacement.Inside)]
+    [BackgroundColor(36, 108, 116)]
+    [Expand(false, false)]
+    public RacePeriodConfig RacePeriod = new();
 
     [Header("NPCs")]
     [HeaderIcon(267)]
@@ -38,23 +49,12 @@ public sealed class ServerConfig : ModConfig
     [DefaultValue(ServerConfigDefaults.BoundSpawnChance)]
     public float BoundSpawnChance = ServerConfigDefaults.BoundSpawnChance;
 
-    [Header("Travel")]
-    [HeaderIcon("PvPAdventure/Assets/Portals/PortalMinimap_Red")]
-    [ConfigIcon(nameof(Ass.ConfigBed), placement: ConfigIconPlacement.Cut)]
-    [BackgroundColor(36, 108, 116)]
-    [Expand(false, false)]
-    public TravelSystemConfig TravelSystem = new();
-
     [Header("World")]
     [HeaderIcon(ItemID.WorldGlobe)]
     [BackgroundColor(72, 104, 72)]
     [Expand(false, false)]
     [CustomModConfigItem(typeof(InvasionDictionaryElement))]
     public Dictionary<int, InvasionSizeValue> InvasionSizes = ServerConfigDefaults.CreateInvasionSizes();
-
-    [BackgroundColor(72, 104, 72)]
-    [DefaultValue(true)]
-    public bool DisableTombstones = true;
 
     [BackgroundColor(72, 104, 72)]
     [DefaultValue(true)]
@@ -87,6 +87,7 @@ public sealed class ServerConfig : ModConfig
         ShakingChest ??= new();
         ShakingChest.ShopItems ??= ServerConfigDefaults.CreateShopItems();
         TravelSystem ??= new();
+        RacePeriod ??= new();
         WorldGeneration ??= new();
         InvasionSizes ??= ServerConfigDefaults.CreateInvasionSizes();
     }
@@ -189,6 +190,20 @@ public sealed class ServerConfig : ModConfig
             public List<ConfigItem> Items = [];
             public Condition Conditions = new();
         }
+    }
+
+    public sealed class RacePeriodConfig
+    {
+        [ConfigIcon(nameof(PvPFramework.Core.Utilities.Ass.IconCheckGreen), nameof(PvPFramework.Core.Utilities.Ass.IconXGray), grayWhenOff: true)]
+        [DefaultValue(true)]
+        public bool RacePeriodEnabled = true;
+
+        [RequiresField(nameof(RacePeriodEnabled))]
+        [Range(1f, 20f)]
+        [Increment(0.25f)]
+        [DefaultValue(8f)]
+        [Slider]
+        public float RacePeriodRunSpeed = 8f;
     }
 
     public sealed class TravelSystemConfig

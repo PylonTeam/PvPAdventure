@@ -1,7 +1,6 @@
 using Pylon.Common.Authentication;
 using Pylon.Common.MainMenu.API;
 using Pylon.Common.MainMenu.API.Achievements;
-using Pylon.Common.MainMenu.API.MatchHistory;
 using Pylon.Common.MainMenu.API.Profile;
 using System.Threading;
 using System.Threading.Tasks;
@@ -84,16 +83,6 @@ internal static class PylonService
             }
             return false;
         }
-    }
-
-    public static Task<ApiResult<MatchApi.CompletedMatchPayload>> PostMatchAsync(
-        MatchApi.MatchPayload payload,
-        string replayFilePath = null,
-        CancellationToken cancellationToken = default)
-    {
-        return string.IsNullOrWhiteSpace(replayFilePath)
-            ? MatchApi.PostOfficialMatchAsync(payload, cancellationToken)
-            : MatchApi.PostOfficialMatchV2Async(payload, replayFilePath, cancellationToken);
     }
 
     public static Task<ApiResult<long>> GetTotalGemsAsync(

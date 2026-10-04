@@ -373,6 +373,6 @@ internal sealed class AdventureMatchParticipantPlayer : ModPlayer
         if (Main.netMode != Terraria.ID.NetmodeID.Server)
             return;
 
-        ModContent.GetInstance<GameManager>()?.CaptureDisconnectingPlayer(Player);
+        ModContent.GetInstance<AdventureMatchReportingSystem>()?.CaptureDisconnectingPlayer(Player);
     }
 }

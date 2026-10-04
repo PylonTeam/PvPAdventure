@@ -320,9 +320,10 @@ public class PointsManager : ModSystem
 
     public void SetTeamPoints(Team team, int points)
     {
+        if (Main.netMode == NetmodeID.MultiplayerClient || team == Team.None || !Enum.IsDefined(team)) return;
         _points[team] = points;
 
-        if (Main.dedServ)
+        if (Main.netMode == NetmodeID.Server)
         {
             NetMessage.SendData(MessageID.WorldData);
         }

@@ -89,7 +89,7 @@ public sealed class ShakingChestSystem : ModSystem
 
     public override void PostWorldGen()
     {
-        if (Main.netMode != NetmodeID.MultiplayerClient)
+        if (Main.netMode != NetmodeID.MultiplayerClient && ModContent.GetInstance<GameManager>().IsSelected)
             Spawn();
     }
 

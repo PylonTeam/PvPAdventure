@@ -1,4 +1,5 @@
 using Pylon.Common.MainMenu.API;
+using Pylon.Common.MainMenu.API.MatchHistory;
 using PvPFramework.Common.EndScreen;
 using System;
 using System.Collections.Generic;
@@ -69,7 +70,7 @@ internal static class MatchReporter
     {
         try
         {
-            string backupPath = MatchBackupStore.Save(payload, matchToken);
+            string backupPath = MatchSubmission.SaveBackup(payload, matchToken, "PvPAdventureMatchesBackupDoNotDelete");
             Log.Chat($"Saved permanent match JSON backup. MatchToken={matchToken}, Path={backupPath}");
         }
         catch (Exception ex)
@@ -87,7 +88,8 @@ internal static class MatchReporter
     {
         try
         {
-            ApiResult<CompletedMatchPayload> result = await PylonService.PostMatchAsync(payload, replayFilePath)
+            ApiResult<CompletedMatchPayload> result = await MatchSubmission.SubmitAsync(
+                presentationKey, payload, replayFilePath, "PvPAdventureMatchesBackupDoNotDelete")
                 .ConfigureAwait(false);
             string version = string.IsNullOrWhiteSpace(replayFilePath) ? "v1" : "v2";
 

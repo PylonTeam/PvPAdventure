@@ -1,5 +1,10 @@
 Mods: {
 	PvPAdventure: {
+		RacePeriod: {
+			MountLocked: cannot mount in spawn!
+			HookLocked: cannot hook in spawn!
+		}
+
 		Biomes: {
 			Forest: Forest
 			Shimmer: Shimmer
@@ -11,7 +16,6 @@ Mods: {
 			DLEndGameTool.DisplayName: DL End Game Tool
 			DLEndGameToolRightClick.DisplayName: DL End Game Tool Right Click
 			DLPauseTool.DisplayName: DL Pause Tool
-			DLPointsSetterTool.DisplayName: DL Points Setter Tool
 			DLStartGameTool.DisplayName: DL Start Game Tool
 			DLStartGameToolRightClick.DisplayName: DL Start Game Tool Right Click
 			UsePortalCreator.DisplayName: Use Portal Creator
@@ -69,12 +73,6 @@ Mods: {
 				}
 
 				Description: Click to {0} the game
-			}
-
-			DLPointsSetterTool: {
-				DisplayName: Points Setter
-				SetPoints: Set Points
-				Description: The tool has no description! Add one in .hjson files!
 			}
 
 			SpawnBoxTool.DisplayName: Spawnbox
@@ -220,6 +218,11 @@ Mods: {
 		Configs: {
 			ClientConfig: {
 				DisplayName: Adventure Client Config
+
+				ShowSpawnMountWarnings: {
+					Label: Spawn Mount Warnings
+					Tooltip: Show a warning when trying to change mount or use a hook while waiting in the race entry area
+				}
 
 				Headers: {
 					Visualization: Visualization
@@ -436,8 +439,14 @@ Mods: {
 			ServerConfig: {
 				DisplayName: Adventure Server Config
 
+				RacePeriod: {
+					Label: Race Period
+					Tooltip: Spirit animal mount settings before the match
+				}
+
 				Headers: {
 					Points: Points
+					RacePeriod: Race Period
 					Combat: Combat
 					Items: Items
 					Bosses: Bosses
@@ -1125,6 +1134,20 @@ Mods: {
 				Price: {
 					Label: Price
 					Tooltip: Price in copper coins
+				}
+			}
+
+			RacePeriodConfig: {
+				Tooltip: ""
+
+				RacePeriodEnabled: {
+					Label: Enabled
+					Tooltip: Before the match everyone in the starting region rides their spirit animal
+				}
+
+				RacePeriodRunSpeed: {
+					Label: Run Speed
+					Tooltip: Maximum horizontal speed of spirit animal mounts during the race period, in pixels per tick
 				}
 			}
 

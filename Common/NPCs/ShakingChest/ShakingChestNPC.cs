@@ -161,7 +161,7 @@ public sealed class ShakingChestNPC : GlobalNPC
             return;
 
         if (Main.netMode != NetmodeID.MultiplayerClient &&
-            ModContent.GetInstance<GameManager>().CurrentPhase == GameManager.Phase.Playing)
+            ModContent.GetInstance<GameManager>().CurrentPhase != GameManager.Phase.Waiting)
         {
             ShakingChestNetHandler.SendDisappearFx(npc);
             npc.active = false;

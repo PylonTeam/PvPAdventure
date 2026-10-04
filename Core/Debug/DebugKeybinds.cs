@@ -4,7 +4,7 @@ using Microsoft.Xna.Framework.Input;
 using PvPAdventure.Common.Bounties;
 using PvPAdventure.Common.Game;
 using PvPAdventure.Common.Travel.UI;
-using PvPAdventure.Core.Net;
+using PvPFramework.Common.Game;
 using PvPAdventure.Core.Utilities;
 using PvPAdventure.UI;
 using Terraria;
@@ -23,7 +23,7 @@ namespace PvPAdventure.Core.Debug;
 //   Shift+NumPad4  grant bounty shards
 //   F5             rebuild debug UI (travel UI + draggable panels)
 //
-// The race period toggle lives in PvP Framework's DebugKeybinds, next to that feature.
+// The race period toggle lives in Adventure's DebugRacePeriodKeybinds.
 [Autoload(Side = ModSide.Client)]
 internal sealed class DebugKeybinds : ModSystem
 {
@@ -74,25 +74,14 @@ internal sealed class DebugKeybinds : ModSystem
     {
         GameManager gameManager = ModContent.GetInstance<GameManager>();
 
-        if (gameManager.CurrentPhase == GameManager.Phase.Playing || gameManager._startGameCountdown.HasValue)
+        if (!gameManager.IsSelected || GameSession.Instance.IsRunning)
         {
-            Log.Chat("Shift+NumPad2: a match is already starting or running.");
+            Log.Chat("Shift+NumPad2: select Adventure and wait for the current event to finish.");
             return;
         }
 
-        if (Main.netMode == NetmodeID.MultiplayerClient)
-        {
-            ModPacket packet = ModContent.GetInstance<PvPAdventure>().GetPacket();
-            packet.Write((byte)AdventurePacketIdentifier.GameManager);
-            packet.Write((byte)GameManagerNetHandler.GameManagerPacketType.StartGame);
-            packet.Write(GameManager.MaxGameDurationFrames);
-            packet.Write(StartGameCountdownSeconds);
-            packet.Send();
-        }
-        else
-        {
-            gameManager.StartGame(GameManager.MaxGameDurationFrames, StartGameCountdownSeconds);
-        }
+        if (!ErkySSC.Common.AdminTools.AdminUISystem.CanUseAdminUI()) return;
+        GameSessionNetHandler.Start(GameSession.MaxDurationTicks, StartGameCountdownSeconds);
 
         Log.Chat("Shift+NumPad2: starting a match.");
     }
@@ -102,23 +91,14 @@ internal sealed class DebugKeybinds : ModSystem
     {
         GameManager gameManager = ModContent.GetInstance<GameManager>();
 
-        if (gameManager.CurrentPhase != GameManager.Phase.Playing && !gameManager._startGameCountdown.HasValue)
+        if (!gameManager.IsSelected || !GameSession.Instance.IsRunning)
         {
             Log.Chat("Shift+NumPad3: no match or countdown to end.");
             return;
         }
 
-        if (Main.netMode == NetmodeID.MultiplayerClient)
-        {
-            ModPacket packet = ModContent.GetInstance<PvPAdventure>().GetPacket();
-            packet.Write((byte)AdventurePacketIdentifier.GameManager);
-            packet.Write((byte)GameManagerNetHandler.GameManagerPacketType.EndGame);
-            packet.Send();
-        }
-        else
-        {
-            gameManager.EndGame();
-        }
+        if (!ErkySSC.Common.AdminTools.AdminUISystem.CanUseAdminUI()) return;
+        GameSessionNetHandler.End();
 
         Log.Chat("Shift+NumPad3: ending the match or active countdown.");
     }

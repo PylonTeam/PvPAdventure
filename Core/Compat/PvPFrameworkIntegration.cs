@@ -5,7 +5,7 @@ using PvPAdventure.Common.Game.StatTrackers;
 using PvPAdventure.Common.Statistics;
 using PvPAdventure.Common.Travel.Beds;
 using PvPFramework.Common.Scoreboard;
-using PvPFramework.Common.RacePeriod;
+using PvPAdventure.Common.RacePeriod;
 using Pylon.Common.SpiritAnimals;
 using PvPFramework.Common.Visualization.TileOutlines;
 using ReLogic.Content;
@@ -30,8 +30,8 @@ public class PvPFrameworkIntegration : ModSystem
 {
     public override void Load()
     {
-        // Pylon owns cosmetic selection and synchronization; Framework owns race mechanics.
-        // The provider keeps that boundary data-driven and Bunny remains Framework's fallback.
+        // Pylon owns cosmetic selection and synchronization; Adventure owns race mechanics.
+        // The provider keeps that boundary data-driven and Bunny remains Adventure's fallback.
         RacePeriodRules.MountTypeProvider = static player =>
             player.GetModPlayer<SpiritAnimalPlayer>().MountType;
         RacePeriodRules.SpriteSheetProvider = ResolveSpiritAnimalSpriteSheet;

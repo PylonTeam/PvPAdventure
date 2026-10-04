@@ -31,8 +31,12 @@ public class PvPAdventure : Mod
                 Common.Travel.Beds.TeamBedNetHandler.HandlePacket(reader, whoAmI);
                 break;
 
-            case AdventurePacketIdentifier.GameManager:
-                Common.Game.GameManagerNetHandler.HandlePacket(reader, whoAmI);
+            case AdventurePacketIdentifier.TeamPoints:
+                Common.Statistics.TeamPointsNetHandler.HandlePacket(reader, whoAmI);
+                break;
+
+            case AdventurePacketIdentifier.ReservedLegacyGameManager:
+                // Retired packets cannot start/end events or be interpreted as point edits.
                 break;
 
             case AdventurePacketIdentifier.TravelTeleport:

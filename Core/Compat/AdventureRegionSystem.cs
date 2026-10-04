@@ -5,7 +5,8 @@ using ErkySSC.Common.RegionProtection;
 using Microsoft.Xna.Framework;
 using Newtonsoft.Json.Linq;
 using PvPAdventure.Common.Game;
-using PvPFramework.Common.RacePeriod;
+using PvPFramework.Common.Game;
+using PvPAdventure.Common.RacePeriod;
 using Terraria;
 using Terraria.ID;
 using Terraria.ModLoader;
@@ -19,23 +20,26 @@ public sealed class AdventureRegionSystem : ModSystem
 {
     public const string RegionKey = "PvPAdventure.Spawnbox";
     private Point lastWorldSpawn;
+    private bool registered;
     public static ProtectedRegion SpawnRegion => RegionSystem.Instance.FindManaged(RegionKey);
     public static Rectangle TileArea => SpawnRegion?.Settings.TileArea ?? Rectangle.Empty;
-    public static Rectangle WorldArea => SpawnRegion?.Settings.WorldArea ?? Rectangle.Empty;
+    public static Rectangle WorldArea => ModContent.GetInstance<GameManager>().IsSelected
+        ? GameSession.Instance.StartingRegionBounds ?? SpawnRegion?.Settings.WorldArea ?? Rectangle.Empty
+        : Rectangle.Empty;
     public static bool Contains(Player player) => player?.active == true && WorldArea.Intersects(player.Hitbox);
     private static bool Waiting => ModContent.GetInstance<GameManager>().CurrentPhase == GameManager.Phase.Waiting;
 
     public override void PostSetupContent()
     {
-        RegionSystem.Instance.RegisterManaged(RegionKey, new(CreateRegion, () => Waiting,
-            player => player.GetModPlayer<RacePeriodPlayer>().IsRacing ? 22 : 0));
-        RacePeriodRules.WaitingProvider = () => Waiting && SpawnRegion != null;
+        GameSession.StageChanged += OnStageChanged;
+        RacePeriodRules.WaitingProvider = () => ModContent.GetInstance<GameManager>().IsSelected && Waiting && SpawnRegion != null;
         RacePeriodRules.EntryAreaProvider = Contains;
         RacePeriodRules.KeepDrawLayerProvider = layer => layer is RegionTeamColorLayer;
     }
 
     public override void Unload()
     {
+        GameSession.StageChanged -= OnStageChanged;
         RegionSystem.Instance.UnregisterManaged(RegionKey);
         RacePeriodRules.WaitingProvider = null;
         RacePeriodRules.EntryAreaProvider = null;
@@ -46,6 +50,7 @@ public sealed class AdventureRegionSystem : ModSystem
 
     public override void PreUpdateEntities()
     {
+        RefreshRegistration();
         if (Main.netMode == NetmodeID.MultiplayerClient) return;
         // A changed world spawn moves the managed region by the same amount, retaining edits.
         Point spawn = new(Main.spawnTileX, Main.spawnTileY);
@@ -58,7 +63,25 @@ public sealed class AdventureRegionSystem : ModSystem
         lastWorldSpawn = spawn;
     }
 
-    public static void UpdateMatchState() => RegionSystem.Instance.RefreshManagedRegions();
+    private static void OnStageChanged(GameEvent owner, string previous, string next) => UpdateMatchState();
+
+    private void RefreshRegistration()
+    {
+        bool selected = ModContent.GetInstance<GameManager>().IsSelected;
+        if (selected == registered) return;
+        if (selected)
+            RegionSystem.Instance.RegisterManaged(RegionKey, new(CreateRegion, () => !GameSession.Instance.IsPlaying,
+                player => player.GetModPlayer<RacePeriodPlayer>().IsRacing ? 22 : 0,
+                Policy: () => GameStartingRegionSystem.SpawnboxPolicy));
+        else RegionSystem.Instance.UnregisterManaged(RegionKey);
+        registered = selected;
+    }
+
+    public static void UpdateMatchState()
+    {
+        ModContent.GetInstance<AdventureRegionSystem>().RefreshRegistration();
+        RegionSystem.Instance.RefreshManagedRegions();
+    }
 
     private static RegionSeed CreateRegion()
     {

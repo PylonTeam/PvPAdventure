@@ -16,6 +16,9 @@ public class ClientConfig : ModConfig
 {
     public override ConfigScope Mode => ConfigScope.ClientSide;
 
+    [DefaultValue(true)]
+    public bool ShowSpawnMountWarnings = true;
+
     public enum TravelUIPosition
     {
         Top,

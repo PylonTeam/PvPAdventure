@@ -83,7 +83,7 @@ internal class TravelTeleportSystem : ModSystem
         if (player?.active != true || player.ghost)
             return false;
 
-        if (ModContent.GetInstance<GameManager>().CurrentPhase == GameManager.Phase.Waiting)
+        if (ModContent.GetInstance<GameManager>().CurrentPhase != GameManager.Phase.Playing)
             return false;
 
         return player.dead || TravelRegions.CanUseTravelUI(player) || PortalSystem.IsCreatingPortal(player);
@@ -94,7 +94,7 @@ internal class TravelTeleportSystem : ModSystem
         return player?.active == true &&
             player.dead &&
             !player.ghost &&
-            ModContent.GetInstance<GameManager>().CurrentPhase != GameManager.Phase.Waiting;
+            ModContent.GetInstance<GameManager>().CurrentPhase == GameManager.Phase.Playing;
     }
 
     public static bool IsSelected(TravelTarget target)
