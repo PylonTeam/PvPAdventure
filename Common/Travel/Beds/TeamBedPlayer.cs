@@ -1,5 +1,6 @@
 ﻿using PvPAdventure.Core.Net;
 using Microsoft.Xna.Framework;
+using ErkySSC.Common.SSC;
 using Terraria;
 using Terraria.ID;
 using Terraria.ModLoader;
@@ -30,7 +31,7 @@ internal sealed class TeamBedPlayer : ModPlayer
 
     public override void PostUpdate()
     {
-        if (Main.netMode != NetmodeID.MultiplayerClient || Player.whoAmI != Main.myPlayer)
+        if (Main.netMode != NetmodeID.MultiplayerClient || Player.whoAmI != Main.myPlayer || SSCBedSystem.IsEnabled)
             return;
 
         if (Player.SpawnX == lastSpawnX && Player.SpawnY == lastSpawnY)

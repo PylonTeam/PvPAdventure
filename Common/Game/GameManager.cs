@@ -1,6 +1,8 @@
 using ErkySSC.Common.AdminTools;
+using Microsoft.Xna.Framework;
 using PvPAdventure.Common.Game.GameReporters;
 using PvPAdventure.Common.Statistics;
+using PvPAdventure.Common.Statistics.UI;
 using PvPAdventure.Core.Compat;
 using PvPFramework.Common.Game;
 using System.Collections.Generic;
@@ -19,6 +21,7 @@ public sealed class GameManager : GameEvent
     public override bool ManagesStartingRegion => true;
     public override bool ManagesLobbyStaging => false;
     public override IReadOnlyList<AdminToolOption> ManagerOptions => TeamPointsSettings.Options;
+    public override Rectangle GetTimerHoverBounds(Rectangle panel) => Scoreline.GetHoverBounds(panel);
     public Phase CurrentPhase => !IsSelected ? Phase.Inactive : Session.IsPlaying ? Phase.Playing : Phase.Waiting;
     public enum Phase { Waiting, Playing, Inactive }
     internal string CurrentMatchToken => Reporting.CurrentMatchToken;

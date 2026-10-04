@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using PvPAdventure.Content.Portals;
+using ErkySSC.Common.SSC;
 using PvPAdventure.Core.Net;
 using System.IO;
 using Terraria;
@@ -117,11 +118,36 @@ public static class TeamBedNetHandler
         if (playerId < 0 || playerId >= Main.maxPlayers || Main.player[playerId] is not { active: true } player)
             return;
 
-        if (Main.netMode == NetmodeID.Server && playerId != whoAmI)
+        if (!IsSafeSpawnPair(spawnX, spawnY))
             return;
 
-        player.SpawnX = spawnX;
-        player.SpawnY = spawnY;
+        if (Main.netMode == NetmodeID.Server)
+        {
+            // SSC owns client bed changes and saving; Adventure cannot bypass its admission checks.
+            if (playerId != whoAmI || SSCBedSystem.IsEnabled)
+                return;
+
+            if (spawnX >= 0)
+            {
+                if (!Player.CheckSpawn(spawnX, spawnY))
+                    return;
+
+                bool changed = player.SpawnX != spawnX || player.SpawnY != spawnY;
+                Vector2 spawnPosition = new(spawnX * 16f + 8f, spawnY * 16f);
+                if (changed && Vector2.DistanceSquared(player.Center, spawnPosition) > 160f * 160f)
+                    return;
+            }
+        }
+        else if (Main.netMode != NetmodeID.MultiplayerClient)
+        {
+            return;
+        }
+
+        // These methods update Terraria's per-world bed history as well as the live spawn fields.
+        if (spawnX == -1)
+            player.RemoveSpawn();
+        else
+            player.ChangeSpawn(spawnX, spawnY);
 
         if (Main.netMode != NetmodeID.Server)
             return;
@@ -129,6 +155,10 @@ public static class TeamBedNetHandler
         TeamBedSystem.SendPlayerSpawn(playerId, spawnX, spawnY, ignoreClient: whoAmI);
         ModContent.GetInstance<TeamBedSystem>().UpdateFromPlayer(player);
     }
+
+    private static bool IsSafeSpawnPair(int spawnX, int spawnY) =>
+        (spawnX == -1 && spawnY == -1) ||
+        (spawnX >= 0 && spawnY >= 0 && WorldGen.InWorld(spawnX, spawnY, 10));
 
     public static void SendDestroyAttempt(Point origin)
     {
