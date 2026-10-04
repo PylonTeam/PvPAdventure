@@ -2,21 +2,32 @@ name: .NET Lint
 
 on:
   push:
-    branches: 
+    branches:
       - erkys-features
       - feature/missinginmaster
   pull_request:
-    branches: ["main"]
+    branches: [main]
+
+env:
+  TML_VERSION: v2026.08.3.0
+  Configuration: Release
 
 jobs:
   dotnet-lint:
     runs-on: windows-latest
     permissions:
       contents: read
-    env:
-      TargetFramework: net8.0
 
     steps:
+      - name: Check dependency token
+        shell: pwsh
+        env:
+          DEPENDENCIES_READ_TOKEN: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:DEPENDENCIES_READ_TOKEN)) {
+            throw "Set DEPENDENCIES_READ_TOKEN with Contents read access to the private PylonTeam dependency repositories."
+          }
+
       - name: Checkout PvPAdventure
         uses: actions/checkout@v6
         with:
@@ -25,29 +36,53 @@ jobs:
       - name: Checkout PvPFramework
         uses: actions/checkout@v6
         with:
-          repository: emyhrberg/PvPFramework
-          ref: 9bbd1a6805cda951f0cbfd71f4268843dc23179e
-          token: ${{ secrets.PVPFRAMEWORK_READ_TOKEN }}
+          repository: PylonTeam/PvPFramework
+          ref: 1caaee17a32669790a33ab83f6c300067e33df5f
+          token: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+          persist-credentials: false
           path: PvPFramework
 
-      - name: Checkout PvPHub
+      - name: Checkout Pylon
         uses: actions/checkout@v6
         with:
-          repository: emyhrberg/PvPHub
-          ref: e33f312f2669f20a86303321891aeada006faca6
-          token: ${{ secrets.PVPHUB_READ_TOKEN }}
-          path: PvPHub
+          repository: PylonTeam/Pylon
+          ref: 41373ec0cc21c98b4828fa29a56a4c0cf22b0a51
+          token: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+          persist-credentials: false
+          path: Pylon
+
+      - name: Checkout ErkySSC
+        uses: actions/checkout@v6
+        with:
+          repository: PylonTeam/ErkySSC
+          ref: a17d7d25de9c6b4317ea8e167ad26c35f33ddd5c
+          token: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+          persist-credentials: false
+          path: ErkySSC
+
+      - name: Verify dependency revisions
+        shell: pwsh
+        run: |
+          Write-Host "PvPAdventure: $(git -C PvPAdventure rev-parse HEAD)"
+          Write-Host "PvPFramework: $(git -C PvPFramework rev-parse HEAD)"
+          Write-Host "Pylon: $(git -C Pylon rev-parse HEAD)"
+          Write-Host "ErkySSC: $(git -C ErkySSC rev-parse HEAD)"
 
       - name: Download tModLoader
         shell: pwsh
         run: |
-          curl.exe -sSL https://github.com/tModLoader/tModLoader/releases/latest/download/tModLoader.zip -o tModLoader.zip
+          $url = "https://github.com/tModLoader/tModLoader/releases/download/$env:TML_VERSION/tModLoader.zip"
+          curl.exe --fail --location --silent --show-error $url -o tModLoader.zip
+          if ($LASTEXITCODE -ne 0) { throw "Failed to download tModLoader." }
 
       - name: Extract tModLoader
         shell: pwsh
         run: |
           Expand-Archive -LiteralPath tModLoader.zip -DestinationPath tModLoader -Force
           Remove-Item -LiteralPath tModLoader.zip
+          if (!(Test-Path "tModLoader\tMLMod.targets")) {
+            throw "tMLMod.targets was not found after extracting tModLoader."
+          }
 
       - name: Create tModLoader.targets
         shell: pwsh
@@ -56,17 +91,17 @@ jobs:
           <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
             <Import Project="tModLoader\tMLMod.targets" />
           </Project>
-          '@ | Set-Content -LiteralPath tModLoader.targets
+          '@ | Set-Content -LiteralPath tModLoader.targets -Encoding utf8
 
-      - name: Setup .NET
+      - name: Setup .NET SDK
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
 
-      - name: Restore dependencies
+      - name: Restore packages
         working-directory: PvPAdventure
-        run: dotnet restore PvPAdventure.sln
+        run: dotnet restore PvPAdventure.csproj -p:Configuration=Release --disable-parallel -m:1 -nr:false
 
       - name: Lint
         working-directory: PvPAdventure
-        run: dotnet format style PvPAdventure.sln --verify-no-changes --no-restore
+        run: dotnet format style PvPAdventure.csproj --verify-no-changes --no-restore
