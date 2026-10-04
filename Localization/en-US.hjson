@@ -228,6 +228,7 @@ Mods: {
 					Display: Display
 					Warnings: Warnings
 					Debug: Debug
+					Chat: Chat
 				}
 
 				Outlines: {
@@ -1131,6 +1132,11 @@ Mods: {
 				RacePeriodRunSpeed: {
 					Label: Run Speed
 					Tooltip: Maximum horizontal speed of spirit animal mounts during the race period, in pixels per tick
+				}
+
+				RacePeriodTrailEnabled: {
+					Label: Race Period Trail
+					Tooltip: Show a soft team-colored trail behind moving spirit animals during the race period
 				}
 			}
 

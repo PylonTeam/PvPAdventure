@@ -34,7 +34,6 @@ public sealed class AdventureRegionSystem : ModSystem
         GameSession.StageChanged += OnStageChanged;
         RacePeriodRules.WaitingProvider = () => ModContent.GetInstance<GameManager>().IsSelected && Waiting && SpawnRegion != null;
         RacePeriodRules.EntryAreaProvider = Contains;
-        RacePeriodRules.KeepDrawLayerProvider = layer => layer is RegionTeamColorLayer;
     }
 
     public override void Unload()
@@ -43,7 +42,6 @@ public sealed class AdventureRegionSystem : ModSystem
         RegionSystem.Instance.UnregisterManaged(RegionKey);
         RacePeriodRules.WaitingProvider = null;
         RacePeriodRules.EntryAreaProvider = null;
-        RacePeriodRules.KeepDrawLayerProvider = null;
     }
 
     public override void ClearWorld() => lastWorldSpawn = Point.Zero;

@@ -15,7 +15,7 @@ internal static class TeamPointsSettings
         get
         {
             PointsManager points = ModContent.GetInstance<PointsManager>();
-            List<AdminToolOption> options = [new("Team points", "")];
+            List<AdminToolOption> options = [new("Team Points", "")];
             foreach (Team team in Enum.GetValues<Team>())
             {
                 if (team == Team.None) continue;

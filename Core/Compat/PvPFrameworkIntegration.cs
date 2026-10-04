@@ -8,6 +8,7 @@ using PvPFramework.Common.Scoreboard;
 using PvPAdventure.Common.RacePeriod;
 using Pylon.Common.SpiritAnimals;
 using PvPFramework.Common.Visualization.TileOutlines;
+using PvPFramework.Common.Visualization;
 using ReLogic.Content;
 using AdventureAssets = PvPAdventure.Core.Utilities.Ass;
 using FrameworkAssets = PvPFramework.Core.Utilities.Ass;
@@ -35,6 +36,7 @@ public class PvPFrameworkIntegration : ModSystem
         RacePeriodRules.MountTypeProvider = static player =>
             player.GetModPlayer<SpiritAnimalPlayer>().MountType;
         RacePeriodRules.SpriteSheetProvider = ResolveSpiritAnimalSpriteSheet;
+        PlayerOutlines.ExcludeFromPlayerOutline += ExcludeRaceTrailFromOutline;
 
         // PvP Framework draws bed outlines; Adventure supplies the synchronized team ownership.
         BedOutlineTile.TeamResolver = ResolveBedTeam;
@@ -54,7 +56,11 @@ public class PvPFrameworkIntegration : ModSystem
         BedOutlineTile.TeamResolver = null;
         RacePeriodRules.MountTypeProvider = null;
         RacePeriodRules.SpriteSheetProvider = null;
+        PlayerOutlines.ExcludeFromPlayerOutline -= ExcludeRaceTrailFromOutline;
     }
+
+    private static bool ExcludeRaceTrailFromOutline(Player player, DrawData data) =>
+        RacePeriodTrailTextures.IsTrailTexture(data.texture);
 
     private static Team? ResolveBedTeam(Point origin) =>
         ModContent.GetInstance<TeamBedSystem>().TryGetTeam(origin, out Team team) ? team : null;

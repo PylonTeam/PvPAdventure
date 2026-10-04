@@ -203,6 +203,11 @@ public sealed class ServerConfig : ModConfig
         [DefaultValue(8f)]
         [Slider]
         public float RacePeriodRunSpeed = 8f;
+
+        [RequiresField(nameof(RacePeriodEnabled))]
+        [ConfigIcon(nameof(PvPFramework.Core.Utilities.Ass.IconCheckGreen), nameof(PvPFramework.Core.Utilities.Ass.IconXGray), grayWhenOff: true)]
+        [DefaultValue(true)]
+        public bool RacePeriodTrailEnabled = true;
     }
 
     public sealed class TravelSystemConfig

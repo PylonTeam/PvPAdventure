@@ -20,6 +20,16 @@ public static class RacePeriodRules
 
     public const int FallbackMountType = MountID.Bunny;
     public const float DefaultRunSpeed = 8f;
+    internal static RacePeriodTrailSettings TrailSettings
+    {
+        get
+        {
+            RacePeriodTrailSettings settings = RacePeriodTrailSettings.Create();
+            settings.IsRacePeriodTrailEnabled &=
+                ModContent.GetInstance<ServerConfig>()?.RacePeriod?.RacePeriodTrailEnabled ?? true;
+            return settings;
+        }
+    }
     public static float FullRunSpeed =>
         ModContent.GetInstance<ServerConfig>()?.RacePeriod?.RacePeriodRunSpeed ?? DefaultRunSpeed;
     public static float BaseRunSpeed => FullRunSpeed * 22f / 40f;

@@ -26,6 +26,15 @@ public sealed class RacePeriodVisuals : ModPlayer
     private bool hasLastSpriteSheet;
     private int spriteFrame;
     private float spriteFrameCounter;
+    internal RacePeriodTrail Trail { get; private set; } = new();
+
+    public override ModPlayer Clone(Player newEntity)
+    {
+        RacePeriodVisuals clone = (RacePeriodVisuals)base.Clone(newEntity);
+        // Character previews and copied players must never share or display live movement history.
+        clone.Trail = new RacePeriodTrail();
+        return clone;
+    }
 
     internal bool TryGetCustomDraw(out RacePeriodSpriteSheet spriteSheet, out int frame)
     {
@@ -43,8 +52,20 @@ public sealed class RacePeriodVisuals : ModPlayer
 
     public override void PostUpdate()
     {
-        if (!Player.TryGetModPlayer(out RacePeriodPlayer race) || !race.IsRacing ||
-            !race.TryGetSpriteSheet(out RacePeriodSpriteSheet spriteSheet))
+        if (!Player.active || Player.dead || !Player.TryGetModPlayer(out RacePeriodPlayer race) || !race.IsRacing)
+        {
+            Trail.Reset();
+            ResetSpriteAnimation();
+            return;
+        }
+
+        var trailSettings = RacePeriodRules.TrailSettings;
+        if (!Main.dedServ && trailSettings.IsRacePeriodTrailEnabled)
+            Trail.Record(Player.position, Player.velocity.Y != 0f, trailSettings);
+        else
+            Trail.Reset();
+
+        if (!race.TryGetSpriteSheet(out RacePeriodSpriteSheet spriteSheet))
         {
             ResetSpriteAnimation();
             return;
@@ -118,6 +139,26 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
         drawInfo.drawPlayer.TryGetModPlayer(out RacePeriodPlayer race) && race.IsRacing;
 
     protected override void Draw(ref PlayerDrawSet drawInfo)
+    {
+        int start = drawInfo.DrawDataCache.Count;
+        DrawAnimal(ref drawInfo);
+        Player player = drawInfo.drawPlayer;
+        if (player.TryGetModPlayer(out RacePeriodVisuals visuals))
+        {
+            Color teamColor = player.team >= 0 && player.team < Main.teamColor.Length
+                ? Main.teamColor[player.team] : Color.White;
+            var settings = RacePeriodRules.TrailSettings;
+            if (visuals.Trail.IsMoving(settings))
+                visuals.Trail.Append(drawInfo.DrawDataCache, start, player.position, teamColor,
+                    settings, RacePeriodTrailTextures.Mask,
+                    settings.IsWispTrailEnabled ? RacePeriodTrailTextures.Wisp : null,
+                    settings.IsSpeedStreakTrailEnabled ? RacePeriodTrailTextures.Streak : null,
+                    Main.GlobalTimeWrappedHourly, RacePeriodTrailTextures.SoftGlow,
+                    Lighting.GetColor(player.Center.ToTileCoordinates()));
+        }
+    }
+
+    private static void DrawAnimal(ref PlayerDrawSet drawInfo)
     {
         if (drawInfo.drawPlayer.TryGetModPlayer(out RacePeriodVisuals visuals) &&
             visuals.TryGetCustomDraw(out RacePeriodSpriteSheet spriteSheet, out int frame))
