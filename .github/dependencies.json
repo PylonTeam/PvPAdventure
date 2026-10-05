@@ -1,0 +1,5 @@
+{
+  "Pylon": { "repository": "PylonTeam/Pylon", "ref": "main" },
+  "ErkySSC": { "repository": "PylonTeam/ErkySSC", "ref": "main" },
+  "PvPFramework": { "repository": "PylonTeam/PvPFramework", "ref": "erkys-features" }
+}

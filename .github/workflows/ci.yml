@@ -1,0 +1,140 @@
+name: CI
+
+on: [push, pull_request, workflow_dispatch]
+
+env:
+  TML_VERSION: v2026.08.3.0
+  Configuration: Release
+
+jobs:
+  build-and-lint:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout PvPAdventure
+        uses: actions/checkout@v6
+        with:
+          path: PvPAdventure
+          persist-credentials: false
+
+      - name: Read dependencies
+        id: dependencies
+        run: |
+          $dependencies = Get-Content PvPAdventure/.github/dependencies.json -Raw | ConvertFrom-Json
+          foreach ($dependency in $dependencies.PSObject.Properties) {
+            $name = $dependency.Name.ToLowerInvariant()
+            "${name}_repository=$($dependency.Value.repository)" >> $env:GITHUB_OUTPUT
+            "${name}_ref=$($dependency.Value.ref)" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Validate dependency access
+        env:
+          DEPENDENCIES_READ_TOKEN: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:DEPENDENCIES_READ_TOKEN)) {
+            throw "Add DEPENDENCIES_READ_TOKEN with Contents read access to PylonTeam/Pylon, PylonTeam/ErkySSC and PylonTeam/PvPFramework."
+          }
+          $headers = @{
+            Authorization = "Bearer $env:DEPENDENCIES_READ_TOKEN"
+            Accept = 'application/vnd.github+json'
+          }
+          $dependencies = Get-Content PvPAdventure/.github/dependencies.json -Raw | ConvertFrom-Json
+          foreach ($dependency in $dependencies.PSObject.Properties) {
+            $repository = $dependency.Value.repository
+            $ref = [Uri]::EscapeDataString($dependency.Value.ref)
+            try {
+              # Resolving a commit requires Contents read access, just like checkout.
+              $null = Invoke-RestMethod -Uri "$env:GITHUB_API_URL/repos/$repository/commits/$ref" -Headers $headers
+            } catch {
+              $status = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 'network error' }
+              throw "Cannot read $repository at '$($dependency.Value.ref)' ($status). Check that the ref exists and DEPENDENCIES_READ_TOKEN is unexpired, has Contents: read for this repository, and is approved by PylonTeam. For a fine-grained PAT, set resource owner to PylonTeam and select every repository in .github/dependencies.json. Update the Actions secret if the token was replaced."
+            }
+            Write-Host "Dependency access verified: $repository at '$($dependency.Value.ref)'."
+          }
+
+      - name: Checkout Pylon
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ steps.dependencies.outputs.pylon_repository }}
+          ref: ${{ steps.dependencies.outputs.pylon_ref }}
+          token: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+          persist-credentials: false
+          path: Pylon
+
+      - name: Checkout ErkySSC
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ steps.dependencies.outputs.erkyssc_repository }}
+          ref: ${{ steps.dependencies.outputs.erkyssc_ref }}
+          token: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+          persist-credentials: false
+          path: ErkySSC
+
+      - name: Checkout PvPFramework
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ steps.dependencies.outputs.pvpframework_repository }}
+          ref: ${{ steps.dependencies.outputs.pvpframework_ref }}
+          token: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+          persist-credentials: false
+          path: PvPFramework
+
+      - name: Log resolved revisions
+        run: |
+          foreach ($mod in 'PvPAdventure', 'Pylon', 'ErkySSC', 'PvPFramework') {
+            Write-Host "${mod}: $(git -C $mod rev-parse HEAD)"
+          }
+
+      - name: Set up tModLoader
+        run: |
+          $url = "https://github.com/tModLoader/tModLoader/releases/download/$env:TML_VERSION/tModLoader.zip"
+          curl.exe --fail --location --silent --show-error $url -o tModLoader.zip
+          if ($LASTEXITCODE -ne 0) { throw "Failed to download tModLoader." }
+          Expand-Archive -LiteralPath tModLoader.zip -DestinationPath tModLoader -Force
+          Remove-Item -LiteralPath tModLoader.zip
+          if (!(Test-Path 'tModLoader/tMLMod.targets')) { throw "tMLMod.targets was not found." }
+          @'
+          <Project>
+            <Import Project="tModLoader\tMLMod.targets" />
+          </Project>
+          '@ | Set-Content -LiteralPath tModLoader.targets -Encoding utf8
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore packages
+        working-directory: PvPAdventure
+        run: dotnet restore PvPAdventure.csproj -p:Configuration=Release --disable-parallel -m:1 -nr:false
+
+      - name: Build mod and dependencies
+        working-directory: PvPAdventure
+        run: >
+          dotnet build PvPAdventure.csproj
+          --configuration Release
+          --no-restore
+          -m:1
+          -nr:false
+          -p:BuildInParallel=false
+          --verbosity normal
+          "-p:ExtraBuildModFlags=-tmlsavedirectory $env:GITHUB_WORKSPACE\tModLoaderSave"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PvPAdventure-Binaries
+          if-no-files-found: error
+          path: |
+            PvPAdventure/bin/Release/net8.0/PvPAdventure.dll
+            PvPAdventure/bin/Release/net8.0/PvPAdventure.pdb
+            tModLoaderSave/Mods/PvPAdventure.tmod
+
+      - name: Lint
+        working-directory: PvPAdventure
+        run: dotnet format style PvPAdventure.csproj --verify-no-changes --no-restore
