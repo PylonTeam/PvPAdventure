@@ -15,13 +15,10 @@ using FrameworkAssets = PvPFramework.Core.Utilities.Ass;
 using System.Collections.Generic;
 using System.Globalization;
 using Terraria;
-using Terraria.Chat;
 using Terraria.DataStructures;
 using Terraria.Enums;
 using Terraria.GameContent;
-using Terraria.GameContent.UI.Chat;
 using Terraria.ID;
-using Terraria.Localization;
 using Terraria.ModLoader;
 
 namespace PvPAdventure.Core.Compat;
@@ -198,23 +195,5 @@ public class AdventureMatchPlayer : ModPlayer
             return;
 
         ModContent.GetInstance<PointsManager>().AwardPlayerKillToTeam(killer, Player);
-        BroadcastPlayerKill(killer, Player, damageSource);
-    }
-
-    private static void BroadcastPlayerKill(Player killer, Player victim, PlayerDeathReason damageSource)
-    {
-        Item sourceItem = damageSource.SourceItem;
-        if (sourceItem == null || sourceItem.IsAir)
-            sourceItem = new Item(ItemID.Skull);
-
-        string message =
-            $"[c/{Main.teamColor[killer.team].Hex3()}:{killer.name}] " +
-            $"{ItemTagHandler.GenerateTag(sourceItem)} " +
-            $"[c/{Main.teamColor[victim.team].Hex3()}:{victim.name}]";
-
-        if (Main.netMode == NetmodeID.Server)
-            ChatHelper.BroadcastChatMessage(NetworkText.FromLiteral(message), Color.White);
-        else
-            Main.NewText(message, Color.White);
     }
 }

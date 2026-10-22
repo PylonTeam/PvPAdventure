@@ -16,7 +16,8 @@ internal static class AchievementReporter
     /// </summary>
     public static void OnSniperDoubleHit(Player shooter)
     {
-        if (!PylonService.TryGetSteamId(shooter, out ulong steamId))
+        if (!StatTrackers.SniperAchievementSystem.TryGetMatch(out _) ||
+            !PylonService.TryGetSteamId(shooter, out ulong steamId))
             return;
 
         _ = ReportAsync(steamId, "hit_two_one_sniper_shot");
