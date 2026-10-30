@@ -23,6 +23,12 @@
       "executablePath": "$(DotNetName)",
       "commandLineArgs": "Tomat.TML.ClientBootstrap.dll --working-directory \"$(tMLSteamPath).\" --binary \"$(tMLPath)\" --mode server --mod $(AssemblyName) --sdk-natives-directory \"$(TmlBuildNativeRoot).\" --tml-build-version $(TmlBuildSdkVersion) --tml-version $(TmlVersion) --tml-version-resolved $(TmlVersionResolved) --features \"$(TmlBuildBootstrapFeatures)\"",
       "workingDirectory": "$(TmlBuildBootstrapRoot)"
+    },
+    "Adventure (5 mods)": {
+      "commandName": "Executable",
+      "executablePath": "$(DotNetName)",
+      "commandLineArgs": "\"$(tMLPath)\" -modpack \"$(MSBuildProjectDirectory)\\..\\PylonDev\\Profiles\\Adventure.json\"",
+      "workingDirectory": "$(tMLSteamPath)"
     }
   }
 }
