@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using PvPAdventure.Common.Bounties;
 using PvPAdventure.Core.Utilities;
-using PvPFramework.Common.Scoreboard;
+using PylonMatch.Common.Scoreboard;
 using System;
 using System.Collections.Generic;
 using Terraria;

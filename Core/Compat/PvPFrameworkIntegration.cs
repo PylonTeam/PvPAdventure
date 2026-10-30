@@ -4,12 +4,12 @@ using PvPAdventure.Common.Game;
 using PvPAdventure.Common.Game.StatTrackers;
 using PvPAdventure.Common.Statistics;
 using PvPAdventure.Common.Travel.Beds;
-using PvPFramework.Common.Scoreboard;
+using PylonMatch.Common.Scoreboard;
 using PvPAdventure.Common.RacePeriod;
 using Pylon.Common.SpiritAnimals;
 using ReLogic.Content;
 using AdventureAssets = PvPAdventure.Core.Utilities.Ass;
-using FrameworkAssets = PvPFramework.Core.Utilities.Ass;
+using GameAssets = PylonMatch.Core.Assets.GameAssets;
 using System.Collections.Generic;
 using System.Globalization;
 using Terraria;
@@ -21,7 +21,7 @@ using Terraria.ModLoader;
 
 namespace PvPAdventure.Core.Compat;
 
-// Wires PvP Adventure's match rules into PvP Framework's shared systems.
+// Wires Adventure into Framework's combat events and Pylon Match's scoreboard.
 public class PvPFrameworkIntegration : ModSystem
 {
     public override void Load()
@@ -108,7 +108,7 @@ public class PvPFrameworkIntegration : ModSystem
 
         return
         [
-            Row(Stat(FrameworkAssets.Attack.Value, "Damage dealt", scoreboard.Damage, 1f, 0), Stat(FrameworkAssets.Defense.Value, "Damage taken", scoreboard.DamageTaken, 1f, 0)),
+            Row(Stat(GameAssets.Attack.Value, "Damage dealt", scoreboard.Damage, 1f, 0), Stat(GameAssets.Defense.Value, "Damage taken", scoreboard.DamageTaken, 1f, 0)),
             Row(ItemStat(ItemID.GoldCrown, "Current streak", scoreboard.CurrentStreak, 1f, -2), ItemStat(ItemID.PlatinumCrown, "Best streak", scoreboard.BestStreak, 1f, -2)),
             Row(ItemStat(ItemID.PickaxeAxe, "Tiles mined", stats.GetStat(MatchStatKey.TilesMined), 1f, 0), ItemStat(ItemID.DirtBlock, "Tiles placed", stats.GetStat(MatchStatKey.TilesPlaced), 1f, 0)),
             Row(ItemStat(ItemID.LavaBucket, "Lava touched", stats.GetStat(MatchStatKey.LavaTouched), 1f, -2), ItemStat(ItemID.HoneyBucket, "Honey lost", stats.GetStat(MatchStatKey.LostHoney), 1f, -2)),

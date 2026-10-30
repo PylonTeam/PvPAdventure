@@ -5,7 +5,7 @@ using PvPAdventure.Common.Game.StatTrackers;
 using BossDisplaySettings = PvPFramework.Common.NPCs.BossDisplaySettings;
 using PvPAdventure.Common.NPCs;
 using PvPAdventure.Core.Config;
-using PvPFramework.Common.Scoreboard;
+using PylonMatch.Common.Scoreboard;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -178,7 +178,7 @@ public class PointsManager : ModSystem
             return;
         }
 
-        int playerInfoIndex = layers.FindIndex(layer => layer.Name == "PvPFramework: Scoreboard Player Info");
+        int playerInfoIndex = layers.FindIndex(layer => layer.Name == "PylonMatch: Scoreboard Player Info");
 
         if (playerInfoIndex != -1)
         {
@@ -191,7 +191,7 @@ public class PointsManager : ModSystem
             return;
         }
 
-        int scoreboardIndex = layers.FindIndex(layer => layer.Name == "PvPFramework: Scoreboard");
+        int scoreboardIndex = layers.FindIndex(layer => layer.Name == "PylonMatch: Scoreboard");
         if (scoreboardIndex != -1)
         {
             layers.Insert(

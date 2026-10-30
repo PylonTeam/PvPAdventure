@@ -1,10 +1,11 @@
+using PylonMatch.Common.Game;
 using ErkySSC.Common.AdminTools;
 using Microsoft.Xna.Framework;
 using PvPAdventure.Common.Game.GameReporters;
 using PvPAdventure.Common.Statistics;
 using PvPAdventure.Common.Statistics.UI;
 using PvPAdventure.Core.Compat;
-using PvPFramework.Common.Game;
+using PylonMatch.Common.Game;
 using System.Collections.Generic;
 using Terraria.ModLoader;
 
@@ -20,7 +21,7 @@ public sealed class GameManager : GameEvent
     public override string StartingRegionKey => AdventureRegionSystem.RegionKey;
     public override bool ManagesStartingRegion => true;
     public override bool ManagesLobbyStaging => false;
-    public override IReadOnlyList<AdminToolOption> ManagerOptions => TeamPointsSettings.Options;
+    public override IReadOnlyList<GameOption> ManagerOptions => TeamPointsSettings.Options;
     public override Rectangle GetTimerHoverBounds(Rectangle panel) => Scoreline.GetHoverBounds(panel);
     public Phase CurrentPhase => !IsSelected ? Phase.Inactive : Session.IsPlaying ? Phase.Playing : Phase.Waiting;
     public enum Phase { Waiting, Playing, Inactive }

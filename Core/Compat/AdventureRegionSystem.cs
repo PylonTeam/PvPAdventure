@@ -5,7 +5,7 @@ using ErkySSC.Common.RegionProtection;
 using Microsoft.Xna.Framework;
 using Newtonsoft.Json.Linq;
 using PvPAdventure.Common.Game;
-using PvPFramework.Common.Game;
+using PylonMatch.Common.Game;
 using PvPAdventure.Common.RacePeriod;
 using Terraria;
 using Terraria.ID;
@@ -70,7 +70,7 @@ public sealed class AdventureRegionSystem : ModSystem
         if (selected)
             RegionSystem.Instance.RegisterManaged(RegionKey, new(CreateRegion, () => !GameSession.Instance.IsPlaying,
                 player => player.GetModPlayer<RacePeriodPlayer>().IsRacing ? 22 : 0,
-                Policy: () => GameStartingRegionSystem.SpawnboxPolicy));
+                Policy: () => new RegionPolicy { OuterBorder = true, InnerBorder = !GameSession.Instance.IsPlaying, SpawnProtection = true }));
         else RegionSystem.Instance.UnregisterManaged(RegionKey);
         registered = selected;
     }
