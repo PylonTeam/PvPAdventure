@@ -37,7 +37,7 @@ jobs:
           DEPENDENCIES_READ_TOKEN: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:DEPENDENCIES_READ_TOKEN)) {
-            throw "Add DEPENDENCIES_READ_TOKEN with Contents read access to PylonTeam/Pylon, PylonTeam/ErkySSC and PylonTeam/PvPFramework."
+            throw "Add DEPENDENCIES_READ_TOKEN with Contents read access to PylonTeam/Pylon, PylonTeam/ErkySSC, PylonTeam/PvPFramework and PylonTeam/PylonMatch."
           }
           $headers = @{
             Authorization = "Bearer $env:DEPENDENCIES_READ_TOKEN"
@@ -84,9 +84,18 @@ jobs:
           persist-credentials: false
           path: PvPFramework
 
+      - name: Checkout PylonMatch
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ steps.dependencies.outputs.pylonmatch_repository }}
+          ref: ${{ steps.dependencies.outputs.pylonmatch_ref }}
+          token: ${{ secrets.DEPENDENCIES_READ_TOKEN }}
+          persist-credentials: false
+          path: PylonMatch
+
       - name: Log resolved revisions
         run: |
-          foreach ($mod in 'PvPAdventure', 'Pylon', 'ErkySSC', 'PvPFramework') {
+          foreach ($mod in 'PvPAdventure', 'Pylon', 'ErkySSC', 'PvPFramework', 'PylonMatch') {
             Write-Host "${mod}: $(git -C $mod rev-parse HEAD)"
           }
 
