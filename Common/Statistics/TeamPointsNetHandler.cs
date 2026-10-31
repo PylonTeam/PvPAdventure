@@ -1,7 +1,6 @@
-using ErkySSC.Common.AdminTools;
 using ErkySSC.Common.Security;
 using PvPAdventure.Core.Net;
-using PvPFramework.Common.Game;
+using PylonMatch.Common.Game;
 using System;
 using System.IO;
 using Terraria;
@@ -11,12 +10,13 @@ using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.Statistics;
 
-/// <summary>Only Adventure's team-point edits need Adventure packets; game controls use Framework.</summary>
+/// <summary>Adventure owns point edits; PylonMatch supplies match permissions and SSC retains admission checks.</summary>
 internal static class TeamPointsNetHandler
 {
     public static void Set(Team team, int value)
     {
-        if (!AdminToolSecurity.CanUseLocalTools() || !GameSession.Instance.IsSelected("pvpa") || !ValidTeam(team)) return;
+        if (Main.gameMenu || Main.LocalPlayer?.active != true || !GameAccess.CanManageLocal ||
+            !GameSession.Instance.IsSelected("pvpa") || !ValidTeam(team)) return;
         if (Main.netMode != NetmodeID.MultiplayerClient)
         {
             ModContent.GetInstance<PointsManager>().SetTeamPoints(team, value);
@@ -32,7 +32,7 @@ internal static class TeamPointsNetHandler
     public static void HandlePacket(BinaryReader reader, int sender)
     {
         if (Main.netMode != NetmodeID.Server || sender < 0 || sender >= Main.maxPlayers ||
-            !AdminToolSecurity.CanUseTools(Main.player[sender]) || !GameSession.Instance.IsSelected("pvpa") ||
+            !GameAccess.CanManage(sender) || !GameSession.Instance.IsSelected("pvpa") ||
             JoinAdmissionSystem.RequiresActiveFeatureGate(sender) && !JoinAdmissionSystem.IsActive(sender)) return;
         Team team = (Team)reader.ReadByte();
         int value = reader.ReadInt32();

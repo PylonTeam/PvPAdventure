@@ -3,7 +3,7 @@ using System.Linq;
 using Microsoft.Xna.Framework;
 using PvPAdventure.Common.Game;
 using PvPAdventure.Core.Config;
-using PvPFramework.Common.Game;
+using PylonMatch.Common.Game;
 using Terraria;
 using Terraria.Enums;
 using Terraria.GameContent;

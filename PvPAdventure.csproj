@@ -10,6 +10,7 @@
 
 	<PropertyGroup>
 		<TmlVersion>steam</TmlVersion>
+		<TargetFramework Condition="'$(TargetFramework)' == ''">net8.0</TargetFramework>
 		<Nullable>disable</Nullable>
 		<AssemblyName>PvPAdventure</AssemblyName>
 		<LangVersion>latest</LangVersion>
@@ -21,6 +22,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\ErkySSC\ErkySSC.csproj" />
 		<ProjectReference Include="..\PvPFramework\PvPFramework.csproj" />
+		<ProjectReference Include="..\PylonMatch\PylonMatch.csproj" />
 		<ProjectReference Include="..\Pylon\Pylon.csproj" />
 	</ItemGroup>
 

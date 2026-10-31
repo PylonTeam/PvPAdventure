@@ -1,8 +1,8 @@
 using PvPAdventure.Common.Game.MatchReplays;
 using PvPAdventure.Common.Game.StatTrackers;
 using PvPAdventure.Common.Statistics;
-using PvPFramework.Common.EndScreen;
-using PvPFramework.Common.Game;
+using PylonMatch.Common.EndScreen;
+using PylonMatch.Common.Game;
 using System;
 using Terraria;
 using Terraria.ID;

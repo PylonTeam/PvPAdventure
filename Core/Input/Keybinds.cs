@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework.Input;
 using PvPAdventure.Common.Bounties;
 using PvPAdventure.Common.Statistics;
 using PvPAdventure.Content.Portals;
-using FrameworkKeybinds = PvPFramework.Core.Input.Keybinds;
+using GameKeybinds = PylonMatch.Core.Input.Keybinds;
 using System.Collections.Generic;
 using Terraria;
 using Terraria.GameInput;
@@ -47,8 +47,8 @@ internal class KeybindsPlayer : ModPlayer
     {
         var keybinds = ModContent.GetInstance<Keybinds>();
 
-        // PvP Adventure extends PvP Framework's scoreboard with boss completion progress.
-        var scoreboardKey = ModContent.GetInstance<FrameworkKeybinds>().Scoreboard;
+        // PvP Adventure extends Pylon Match's scoreboard with boss completion progress.
+        var scoreboardKey = ModContent.GetInstance<GameKeybinds>().Scoreboard;
         if (scoreboardKey?.JustPressed == true)
             ModContent.GetInstance<PointsManager>().BossCompletion.Active = true;
         else if (scoreboardKey?.JustReleased == true)

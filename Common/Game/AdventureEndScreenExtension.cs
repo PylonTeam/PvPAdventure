@@ -1,8 +1,8 @@
 using PvPAdventure.Common.Game.GameReporters;
 using PvPAdventure.Common.Game.StatTrackers;
 using PvPAdventure.Common.Statistics;
-using PvPFramework.Common.EndScreen;
-using PvPFramework.Common.Scoreboard;
+using PylonMatch.Common.EndScreen;
+using PylonMatch.Common.Scoreboard;
 using System;
 using System.Collections.Generic;
 using System.Linq;
