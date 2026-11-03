@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.Chat;
@@ -9,68 +10,65 @@ using Terraria.ModLoader.IO;
 namespace PvPAdventure.Common.World
 {
     /// <summary>
-    /// Temporary system that makes certain events occur at certain times, always
-    ///  40 min elapsed / Day 3 @ 12:00 AM, Spawn Wall of Flesh
-    /// 110 min elapsed / Day 5 @ 10:09 PM, Spawn Plantera on a random bulb (or in the jungle)
-    /// 130 min elapsed / Day 6 @  2:45 PM, Spawn Golem on the Lihzahrd Altar
+    ///  System that spawns "bespoke" bosses at guaranteed times:
+    ///  Wall of Flesh when the 2nd night begins
+    ///  Plantera at the second day after all three mechanical bosses are defeated
+    ///  Golem at the second dawn after Plantera is defeated.
     /// </summary>
     internal class BespokeProgression : ModSystem
     {
-        public static int WorldDay { get; private set; } = 1;
-        private bool _passedMidnightThisNight;
+        private enum Stage { Waiting, Queued, Armed, Due, Done }
 
-        private bool _hardmodeStarted;
-        private bool _planteraDowned;
-        private bool _golemDowned;
-
-        private const double MidnightTick = 18_000;
-        private const double NightTick_Plantera = 9_900;
-        private const double DayTick_Golem = 49_500;
+        private bool? _wasDayTime;
+        private int _nightsStarted;
+        private bool _wofDone;
+        private Stage _planteraStage;
+        private Stage _golemStage;
 
         public override void OnWorldLoad()
         {
-            _passedMidnightThisNight = false;
+            _wasDayTime = null;
         }
 
         public override void ClearWorld()
         {
-            WorldDay = 1;
-            _passedMidnightThisNight = false;
-            _hardmodeStarted = false;
-            _planteraDowned = false;
-            _golemDowned = false;
+            _wasDayTime = null;
+            _nightsStarted = 0;
+            _wofDone = false;
+            _planteraStage = Stage.Waiting;
+            _golemStage = Stage.Waiting;
         }
 
         public override void SaveWorldData(TagCompound tag)
         {
-            tag["worldDay"] = WorldDay;
-            tag["hardmodeStarted"] = _hardmodeStarted;
-            tag["planteraDowned"] = _planteraDowned;
-            tag["golemDowned"] = _golemDowned;
+            tag["nightsStarted"] = _nightsStarted;
+            tag["wofDone"] = _wofDone;
+            tag["planteraStage"] = (int)_planteraStage;
+            tag["golemStage"] = (int)_golemStage;
         }
 
         public override void LoadWorldData(TagCompound tag)
         {
-            WorldDay = tag.ContainsKey("worldDay") ? tag.GetAsInt("worldDay") : 1;
-            _hardmodeStarted = tag.ContainsKey("hardmodeStarted") ? tag.Get<bool>("hardmodeStarted") : false;
-            _planteraDowned = tag.ContainsKey("planteraDowned") ? tag.Get<bool>("planteraDowned") : false;
-            _golemDowned = tag.ContainsKey("golemDowned") ? tag.Get<bool>("golemDowned") : false;
+            _nightsStarted = tag.ContainsKey("nightsStarted") ? tag.GetAsInt("nightsStarted") : 0;
+            _wofDone = tag.ContainsKey("wofDone") && tag.Get<bool>("wofDone");
+            _planteraStage = tag.ContainsKey("planteraStage") ? (Stage)tag.GetAsInt("planteraStage") : Stage.Waiting;
+            _golemStage = tag.ContainsKey("golemStage") ? (Stage)tag.GetAsInt("golemStage") : Stage.Waiting;
         }
 
         public override void NetSend(System.IO.BinaryWriter writer)
         {
-            writer.Write(WorldDay);
-            writer.Write(_hardmodeStarted);
-            writer.Write(_planteraDowned);
-            writer.Write(_golemDowned);
+            writer.Write(_nightsStarted);
+            writer.Write(_wofDone);
+            writer.Write((int)_planteraStage);
+            writer.Write((int)_golemStage);
         }
 
         public override void NetReceive(System.IO.BinaryReader reader)
         {
-            WorldDay = reader.ReadInt32();
-            _hardmodeStarted = reader.ReadBoolean();
-            _planteraDowned = reader.ReadBoolean();
-            _golemDowned = reader.ReadBoolean();
+            _nightsStarted = reader.ReadInt32();
+            _wofDone = reader.ReadBoolean();
+            _planteraStage = (Stage)reader.ReadInt32();
+            _golemStage = (Stage)reader.ReadInt32();
         }
 
         public override void PostUpdateWorld()
@@ -78,68 +76,52 @@ namespace PvPAdventure.Common.World
             if (Main.netMode == NetmodeID.MultiplayerClient)
                 return;
 
-            AdvanceDayCounter();
-            CheckScheduledEvents();
+            // Detect day/night transitions
+            bool isDawn = false;
+            if (_wasDayTime.HasValue)
+            {
+                if (_wasDayTime.Value && !Main.dayTime)
+                    _nightsStarted++;
+                else if (!_wasDayTime.Value && Main.dayTime)
+                    isDawn = true;
+            }
+            _wasDayTime = Main.dayTime;
+
+            CheckScheduledEvents(isDawn);
         }
 
-        private void AdvanceDayCounter()
+        private void CheckScheduledEvents(bool isDawn)
         {
-            if (!Main.dayTime)
-            {
-                if (!_passedMidnightThisNight && Main.time >= MidnightTick)
-                {
-                    WorldDay++;
-                    _passedMidnightThisNight = true;
-                }
-            }
-            else
-            {
-                _passedMidnightThisNight = false;
-            }
+            if (!_wofDone && _nightsStarted >= 2)
+                _wofDone = SpawnWallOfFlesh();
+
+            Advance(ref _golemStage, NPC.downedPlantBoss, isDawn, SpawnGolem);
+
+            bool allMechsDown = NPC.downedMechBoss1 && NPC.downedMechBoss2 && NPC.downedMechBoss3;
+            Advance(ref _planteraStage, allMechsDown, isDawn, SpawnPlantera);
         }
 
-        private void CheckScheduledEvents()
+        private static void Advance(ref Stage stage, bool trigger, bool isDawn, Func<bool> spawn)
         {
-            if (!_hardmodeStarted
-                && WorldDay >= 3
-                && !Main.dayTime
-                && Main.time >= MidnightTick)
-            {
-                SpawnWallOfFlesh();
-                _hardmodeStarted = true;
-            }
+            if (stage == Stage.Waiting && trigger)
+                stage = Stage.Queued;
+            else if (stage == Stage.Queued && isDawn)
+                stage = Stage.Armed;
+            else if (stage == Stage.Armed && isDawn)
+                stage = Stage.Due;
 
-            if (!_planteraDowned
-                && WorldDay == 5
-                && !Main.dayTime
-                && Main.time >= NightTick_Plantera
-                && Main.time < MidnightTick)
-            {
-                SpawnPlantera();
-                _planteraDowned = true;
-            }
-
-            if (!_golemDowned
-                && WorldDay >= 6
-                && Main.dayTime
-                && Main.time >= DayTick_Golem
-                && _planteraDowned)
-            {
-                SpawnGolem();
-                _golemDowned = true;
-            }
+            if (stage == Stage.Due && spawn())
+                stage = Stage.Done;
         }
 
-        private static void SpawnWallOfFlesh()
+        private static bool SpawnWallOfFlesh()
         {
-            // Skip if hardmode is already active (WoF was already killed)
-            // or if WoF is currently alive
             if (Main.hardMode || NPC.AnyNPCs(NPCID.WallofFlesh))
-                return;
+                return true;
 
             int playerIndex = FindActivePlayer();
             if (playerIndex == -1)
-                return;
+                return false;
 
             int xPixel = 100 * 16;
             int yTile = Main.UnderworldLayer + (Main.maxTilesY - Main.UnderworldLayer) / 2;
@@ -150,17 +132,17 @@ namespace PvPAdventure.Common.World
 
             BroadcastMessage("The Wall Of Flesh has awoken (woke) but it is also bespoke (bespoke)",
                 new Color(255, 102, 255));
+            return true;
         }
 
-        private static void SpawnPlantera()
+        private static bool SpawnPlantera()
         {
-            // Skip if Plantera has already been defeated or is currently alive
             if (NPC.downedPlantBoss || NPC.AnyNPCs(NPCID.Plantera))
-                return;
+                return true;
 
             int playerIndex = FindActivePlayer();
             if (playerIndex == -1)
-                return;
+                return false;
 
             int spawnX, spawnY;
 
@@ -192,7 +174,7 @@ namespace PvPAdventure.Common.World
                         NetMessage.SendData(MessageID.WorldData);
                     BroadcastMessage("Bespoke Plantera!!!",
                         new Color(255, 102, 255));
-                    return;
+                    return true;
                 }
 
                 spawnX = jungleSpot.X * 16;
@@ -204,6 +186,7 @@ namespace PvPAdventure.Common.World
 
             BroadcastMessage("Holy fuck... look at your map... its bespoke Plantera...",
                 new Color(255, 102, 255));
+            return true;
         }
 
         private static Point FindUndergroundJungleSpot()
@@ -226,15 +209,14 @@ namespace PvPAdventure.Common.World
             return Point.Zero;
         }
 
-        private static void SpawnGolem()
+        private static bool SpawnGolem()
         {
-            // Skip if Golem has already been defeated or is currently alive
             if (NPC.downedGolemBoss || NPC.AnyNPCs(NPCID.Golem))
-                return;
+                return true;
 
             int playerIndex = FindActivePlayer();
             if (playerIndex == -1)
-                return;
+                return false;
 
             Point altarPos = Point.Zero;
             bool found = false;
@@ -257,7 +239,7 @@ namespace PvPAdventure.Common.World
                 NPC.downedGolemBoss = true;
                 if (Main.netMode == NetmodeID.Server)
                     NetMessage.SendData(MessageID.WorldData);
-                return;
+                return true;
             }
 
             int xPixel = altarPos.X * 16;
@@ -268,6 +250,7 @@ namespace PvPAdventure.Common.World
 
             BroadcastMessage("The Bespoke Golem has arrived!",
                 new Color(255, 102, 255));
+            return true;
         }
 
         private static int FindActivePlayer()

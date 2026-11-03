@@ -432,7 +432,37 @@ public static class AdventureDropDatabase
 
                 npcLoot.Add(ItemDropRule.Common(ItemID.BeetleHusk, 1, 12, 16));
                 break;
+            case NPCID.Pumpking:
+                npcLoot.RemoveWhere(drop => drop is LeadingConditionRule);
+                var jackLauncher = ItemDropRule.Common(ItemID.JackOLanternLauncher);
+                jackLauncher.OnSuccess(ItemDropRule.Common(ItemID.ExplosiveJackOLantern, 1, 60, 99), hideLootReport: true);
 
+                var candyRifle = ItemDropRule.Common(ItemID.CandyCornRifle);
+                candyRifle.OnSuccess(ItemDropRule.Common(ItemID.CandyCorn, 1, 60, 99), hideLootReport: true);
+
+                npcLoot.Add(
+                    new FewFromRulesRule(3, 1,
+                        ItemDropRule.Common(ItemID.RavenStaff),
+                        ItemDropRule.Common(ItemID.BatScepter),
+                        ItemDropRule.Common(ItemID.TheHorsemansBlade),
+                        ItemDropRule.Common(ItemID.ScytheWhip),
+                        jackLauncher,
+                        candyRifle
+                    )
+                );
+                break;
+
+            case NPCID.MourningWood:
+                npcLoot.RemoveWhere(drop => drop is LeadingConditionRule);
+
+                npcLoot.Add(ItemDropRule.Common(ItemID.SpookyWood, 1, 400, 500));
+
+                var stakeLauncher = ItemDropRule.Common(ItemID.StakeLauncher, 2);
+                stakeLauncher.OnSuccess(ItemDropRule.Common(ItemID.Stake, 1, 60, 99), hideLootReport: true);
+                npcLoot.Add(stakeLauncher);
+
+                npcLoot.Add(ItemDropRule.Common(ItemID.NecromanticScroll, 2));
+                break;
             case NPCID.QueenSlimeBoss:
                 // Remove the big loot pool -- we will re-create it ourselves.
                 npcLoot.RemoveWhere(drop => drop is LeadingConditionRule);
