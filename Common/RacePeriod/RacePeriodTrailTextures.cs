@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using ErkySSC.Common.RegionProtection.VFX;
 using System.Collections.Generic;
 using System.Linq;
 using Terraria;
@@ -17,6 +18,9 @@ internal sealed class RacePeriodTrailTextures : ModSystem
 
     internal static bool IsTrailTexture(Texture2D texture) =>
         texture != null && trailTextures.Contains(texture);
+
+    public override void PostSetupContent() =>
+        ModContent.GetInstance<SpawnRegionGlow>().RegisterTextureExclusion(IsTrailTexture);
 
     internal static Texture2D Streak =>
         streak ??= CreateTexture(Main.instance.GraphicsDevice, 1, 1, [Color.White]);
@@ -50,6 +54,7 @@ internal sealed class RacePeriodTrailTextures : ModSystem
 
     public override void Unload()
     {
+        ModContent.GetInstance<SpawnRegionGlow>()?.UnregisterTextureExclusion(IsTrailTexture);
         Texture2D[] textures = trailTextures.ToArray();
         masks.Clear();
         trailTextures.Clear();
