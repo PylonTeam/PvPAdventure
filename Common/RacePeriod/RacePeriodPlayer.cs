@@ -172,6 +172,8 @@ public sealed class RacePeriodPlayer : ModPlayer
                 Player.velocity.Y = -RacePeriodRules.JumpSpeed * RacePeriodRules.AirJumpHeightMultiplier;
                 Player.jump = 0;
                 SpawnJumpPoof();
+                if (!Main.dedServ && Player.TryGetModPlayer(out RacePeriodVisuals visuals))
+                    visuals.TriggerPoweredJumpEchoes();
 
                 if (airJumpCount > 1)
                     jumpCooldown = RacePeriodRules.AirJumpCooldownFrames;
@@ -188,8 +190,8 @@ public sealed class RacePeriodPlayer : ModPlayer
     /// Every animal races in the player's own hitbox, whatever its artwork is. Vanilla sizes the
     /// player from the mount's height boost, which would leave a horse rider 14px taller than a
     /// bunny rider and too big for gaps the bunny clears. Undoing it keeps the feet planted exactly
-    /// the way Player.ResizeHitbox does when a boost goes away, and both draw paths anchor the
-    /// animal to the player's bottom, so no artwork moves with it.
+    /// the way Player.ResizeHitbox does when a boost goes away. The race layer aligns the artwork
+    /// separately from this collision adjustment.
     /// </summary>
     private void ResetMountHitbox()
     {
