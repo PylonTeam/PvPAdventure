@@ -1,5 +1,4 @@
-﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+﻿using Microsoft.Xna.Framework.Graphics;
 using PvPAdventure.Content.Portals;
 using Terraria;
 using Terraria.DataStructures;
@@ -12,35 +11,16 @@ namespace PvPAdventure.Common.Travel.Portals;
 /// Draws the held item for the portal creator item with the team-specific texture.
 /// </summary>
 [Autoload(Side = ModSide.Client)]
-internal sealed class PortalCreatorItemDrawer : GlobalItem
+internal sealed class PortalCreatorItemDrawer : ModSystem
 {
-    // The portal gun's grip is much closer to its vertical center than the staff-shaped creator's
-    // grip. Move the replacement toward the player's hand instead of leaving it above their head.
-    private const float PortalGunHeldOffsetY = 14f;
+    public override void Load() => On_PlayerDrawLayers.DrawPlayer_27_HeldItem += DrawPortalCreatorItemWithTeamColor;
 
-    public override bool AppliesToEntity(Item entity, bool lateInstantiation)
-    {
-        return true;
-    }
+    public override void Unload() => On_PlayerDrawLayers.DrawPlayer_27_HeldItem -= DrawPortalCreatorItemWithTeamColor;
 
-    public override void Load()
-    {
-        On_PlayerDrawLayers.DrawPlayer_27_HeldItem += DrawPortalCreatorItemWithTeamColor;
-    }
-    public override void Unload() 
-    {
-        On_PlayerDrawLayers.DrawPlayer_27_HeldItem -= DrawPortalCreatorItemWithTeamColor;
-    }
-
-    #region Held item
     private static void DrawPortalCreatorItemWithTeamColor(On_PlayerDrawLayers.orig_DrawPlayer_27_HeldItem orig, ref PlayerDrawSet drawInfo)
     {
         Item item = drawInfo.drawPlayer.HeldItem;
-
-        // Check if it's a portal creator item
-        bool isPortalCreator = item?.ModItem is PortalCreatorItem;
-
-        if (!isPortalCreator)
+        if (item?.ModItem is not PortalCreatorItem)
         {
             orig(ref drawInfo);
             return;
@@ -49,55 +29,23 @@ internal sealed class PortalCreatorItemDrawer : GlobalItem
         Main.instance.LoadItem(item.type);
         Texture2D vanilla = TextureAssets.Item[item.type].Value;
 
-        // Resolve which texture we actually want to show
         int team = drawInfo.drawPlayer.team;
+        Texture2D replacement = PortalCreatorSkin.TryGetTexture(item, team, out Texture2D skin)
+            ? skin
+            : PortalAssets.GetCreatorTexture(team);
 
-        // Prefer the equipped portal gun skin for this team, otherwise the plain team texture
-        bool usingPortalGunSkin = PortalCreatorSkin.TryGetTexture(item, team, out Texture2D skin);
-        Texture2D replacement = usingPortalGunSkin ? skin : PortalAssets.GetCreatorTexture(team);
-
-        // Standard detour pattern: Capture the cache before and after the original call
         int start = drawInfo.DrawDataCache.Count;
         orig(ref drawInfo);
-        int end = drawInfo.DrawDataCache.Count;
 
-        for (int i = start; i < end; i++)
+        for (int i = start; i < drawInfo.DrawDataCache.Count; i++)
         {
             DrawData data = drawInfo.DrawDataCache[i];
+            if (data.texture != vanilla)
+                continue;
 
-            // If the original draw call used the vanilla texture, replace it with the team-specific texture
-            if (data.texture == vanilla)
-            {
-                data = ScaleDrawData(data, vanilla, replacement);
-                if (usingPortalGunSkin)
-                    data.position.Y += 0 + 0 * drawInfo.drawPlayer.gravDir;
-
-                drawInfo.DrawDataCache[i] = data;
-            }
+            data.texture = replacement;
+            (data.sourceRect, data.origin) = PortalCreatorSkin.Rescale(data.sourceRect, data.origin, vanilla, replacement);
+            drawInfo.DrawDataCache[i] = data;
         }
     }
-    #endregion
-
-    #region Helpers
-    private static DrawData ScaleDrawData(DrawData data, Texture2D from, Texture2D to)
-    {
-        const float itemScale = 1f;
-
-        float sx = to.Width / (float)from.Width;
-        float sy = to.Height / (float)from.Height;
-
-        data.texture = to;
-        data.scale *= itemScale;
-
-        if (data.sourceRect.HasValue)
-        {
-            Rectangle r = data.sourceRect.Value;
-            data.sourceRect = new Rectangle((int)(r.X * sx), (int)(r.Y * sy), (int)(r.Width * sx), (int)(r.Height * sy));
-        }
-
-        data.origin *= new Vector2(sx, sy);
-        return data;
-    }
-    #endregion
-
 }
