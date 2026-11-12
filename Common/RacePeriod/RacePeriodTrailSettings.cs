@@ -20,6 +20,7 @@ internal sealed class RacePeriodTrailSettings
     internal int WakeLifetimeTicks;
     internal float WakeWidthPixels;
     internal float WakeOpacity;
+    internal float WakeEchoOpacity;
     internal float PoweredEchoOpacity;
     internal bool IsCameraLagEnabled;
     internal float CameraVerticalResponse;
@@ -34,7 +35,7 @@ internal sealed class RacePeriodTrailSettings
         IsRacePeriodTrailEnabled = true,
         UseTeamColor = true,
         UseWorldLighting = true,
-        MinimumLighting = 0.10f,
+        MinimumLighting = 0.25f,
         CustomColor = new Color(180, 140, 255),
         ColorSaturation = 1f,
 
@@ -42,8 +43,9 @@ internal sealed class RacePeriodTrailSettings
         WakeSpacingPixels = 4f,
         WakeLengthPixels = 64f,
         WakeLifetimeTicks = 12,
-        WakeWidthPixels = 6.5f,
-        WakeOpacity = 0.71f,
+        WakeWidthPixels = 8.5f,
+        WakeOpacity = 0.65f,
+        WakeEchoOpacity = 0.14f,
         PoweredEchoOpacity = 0.22f,
         MovementThreshold = 0.3f,
         FullIntensitySpeed = 8f,

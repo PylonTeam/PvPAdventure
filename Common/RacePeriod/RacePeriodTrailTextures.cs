@@ -8,7 +8,7 @@ using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.RacePeriod;
 
-/// <summary>Neutral textures for the team wake and powered jump poses.</summary>
+/// <summary>Neutral textures for the soft wake and fading animal poses.</summary>
 [Autoload(Side = ModSide.Client)]
 internal sealed class RacePeriodTrailTextures : ModSystem
 {
@@ -23,10 +23,12 @@ internal sealed class RacePeriodTrailTextures : ModSystem
         ModContent.GetInstance<SpawnRegionGlow>().RegisterTextureExclusion(IsTrailTexture);
 
     internal static Texture2D Streak =>
-        streak ??= CreateTexture(Main.instance.GraphicsDevice, 1, 1, [Color.White]);
+        streak ??= CreateStreak();
 
     internal static Texture2D Mask(Texture2D texture)
     {
+        if (texture.IsDisposed || texture is RenderTarget2D || texture.Format != SurfaceFormat.Color)
+            return null;
         if (masks.TryGetValue(texture, out Texture2D mask))
             return mask;
 
@@ -42,6 +44,18 @@ internal sealed class RacePeriodTrailTextures : ModSystem
         mask = CreateTexture(texture.GraphicsDevice, texture.Width, texture.Height, pixels);
         masks.Add(texture, mask);
         return mask;
+    }
+
+    private static Texture2D CreateStreak()
+    {
+        const int height = 32;
+        Color[] pixels = new Color[height];
+        for (int y = 0; y < height; y++)
+        {
+            float distance = System.MathF.Abs(2f * y / (height - 1f) - 1f);
+            pixels[y] = Color.White * MathHelper.SmoothStep(1f, 0f, distance);
+        }
+        return CreateTexture(Main.instance.GraphicsDevice, 1, height, pixels);
     }
 
     private static Texture2D CreateTexture(GraphicsDevice graphicsDevice, int width, int height, Color[] pixels)

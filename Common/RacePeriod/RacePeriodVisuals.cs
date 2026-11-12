@@ -1,8 +1,10 @@
+using ErkySSC.Common.RegionProtection.VFX;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using Terraria;
 using Terraria.DataStructures;
+using Terraria.ID;
 using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.RacePeriod;
@@ -27,7 +29,6 @@ public sealed class RacePeriodVisuals : ModPlayer
     private int spriteFrame;
     private float spriteFrameCounter;
     private RacePeriodTrail wake = new();
-    private RacePeriodJumpEchoes jumpEchoes = new();
     private int trailMountType = -1;
     private RacePeriodSpriteSheet? trailSpriteSheet;
 
@@ -36,7 +37,6 @@ public sealed class RacePeriodVisuals : ModPlayer
         RacePeriodVisuals clone = (RacePeriodVisuals)base.Clone(newEntity);
         // Character previews and copied players must never share or display live movement history.
         clone.wake = new RacePeriodTrail();
-        clone.jumpEchoes = new RacePeriodJumpEchoes();
         clone.trailMountType = -1;
         clone.trailSpriteSheet = null;
         return clone;
@@ -137,12 +137,10 @@ public sealed class RacePeriodVisuals : ModPlayer
         Vector2 feet = Player.gravDir < 0f ? Player.Top : Player.Bottom;
         int heading = Player.velocity.X > 0f ? 1 : Player.velocity.X < 0f ? -1 : Player.direction;
         Vector2 anchor = feet + new Vector2(-14f * heading, Player.gfxOffY - 16f * Player.gravDir);
-        ulong tick = Main.GameUpdateCount;
-        if (wake.Record(tick, Player.position, anchor, Player.velocity.Y != 0f, settings))
-            jumpEchoes.Reset();
+        wake.Record(Main.GameUpdateCount, Player.position, anchor, Player.velocity.Y != 0f, settings);
     }
 
-    internal void TriggerPoweredJumpEchoes() => jumpEchoes.Trigger(Main.GameUpdateCount);
+    internal void TriggerPoweredJumpTrail() => wake.TriggerPoweredJump(Main.GameUpdateCount);
 
     internal void DrawTrail(ref PlayerDrawSet drawInfo, int start)
     {
@@ -153,16 +151,13 @@ public sealed class RacePeriodVisuals : ModPlayer
         Color team = Player.team >= 0 && Player.team < Main.teamColor.Length
             ? Main.teamColor[Player.team] : Color.White;
         Color lighting = Lighting.GetColor(Player.Center.ToTileCoordinates());
-        ulong tick = Main.GameUpdateCount;
-        jumpEchoes.Draw(ref drawInfo, start, tick, team, lighting, settings);
-        wake.Append(drawInfo.DrawDataCache, start, tick, Main.screenPosition, team, settings,
-            RacePeriodTrailTextures.Streak, lighting);
+        float breath = MathHelper.SmoothStep(0f, 1f, SpawnRegionGlow.GetPulseWave(Player));
+        wake.Draw(ref drawInfo, start, Main.GameUpdateCount, team, settings, lighting, breath);
     }
 
     private void ResetTrail()
     {
         wake.Reset();
-        jumpEchoes.Reset();
         trailMountType = -1;
         trailSpriteSheet = null;
     }
@@ -197,6 +192,16 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
         int start = drawInfo.DrawDataCache.Count;
         RacePeriodSpriteSheet? customSheet = DrawAnimal(ref drawInfo);
         RacePeriodAnimalLayout.Apply(ref drawInfo, start, customSheet);
+        for (int i = start; i < drawInfo.DrawDataCache.Count; i++)
+        {
+            DrawData part = drawInfo.DrawDataCache[i];
+            part.shader = RacePeriodGhostShader.BodyShader;
+            drawInfo.DrawDataCache[i] = part;
+        }
+
+        if (drawInfo.hideEntirePlayer && drawInfo.drawPlayer.mount.Type == MountID.Wolf && drawInfo.DrawDataCache.Count > start)
+            ModContent.GetInstance<SpawnRegionGlow>().AllowGlowForHiddenRider(ref drawInfo);
+
         if (drawInfo.drawPlayer.TryGetModPlayer(out RacePeriodVisuals visuals))
             visuals.DrawTrail(ref drawInfo, start);
     }

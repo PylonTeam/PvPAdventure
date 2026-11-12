@@ -173,7 +173,7 @@ public sealed class RacePeriodPlayer : ModPlayer
                 Player.jump = 0;
                 SpawnJumpPoof();
                 if (!Main.dedServ && Player.TryGetModPlayer(out RacePeriodVisuals visuals))
-                    visuals.TriggerPoweredJumpEchoes();
+                    visuals.TriggerPoweredJumpTrail();
 
                 if (airJumpCount > 1)
                     jumpCooldown = RacePeriodRules.AirJumpCooldownFrames;

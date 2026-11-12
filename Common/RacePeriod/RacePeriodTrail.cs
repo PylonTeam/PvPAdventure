@@ -2,24 +2,39 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using Terraria;
 using Terraria.DataStructures;
 
 namespace PvPAdventure.Common.RacePeriod;
 
-/// <summary>A world-space ribbon that tapers as its samples age.</summary>
+/// <summary>A world-space ribbon and fading poses that follow the animal's recent movement.</summary>
 internal sealed class RacePeriodTrail
 {
     private const int Capacity = 65;
+    private const int PoseCapacity = 24;
+    private const int PoweredBoostTicks = 18;
     private const float TeleportDistance = 192f;
     private const float AnchorJumpDistance = 16f;
     private const float MinimumSegmentLength = 0.01f;
+    private static readonly Color NeutralMist = new(164, 209, 238);
 
     private readonly record struct WakePoint(Vector2 Position, ulong Tick, double Distance,
         float Speed, bool Airborne, bool StartsSpan);
 
+    private sealed class WakePose
+    {
+        internal readonly List<DrawData> Layers = new(4);
+        internal WakePoint Point;
+        internal Color Lighting;
+    }
+
     private readonly WakePoint[] points = new WakePoint[Capacity];
     private readonly List<DrawData> strips = new(Capacity);
 
+    private WakePose[] poses;
+    private int nextPose;
+    private int poseCount;
+    private ulong? poweredJumpTick;
     private int first;
     private int count;
     private bool hasPreviousPosition;
@@ -37,8 +52,12 @@ internal sealed class RacePeriodTrail
         previousDirection = Vector2.Zero;
         head = default;
         distanceSinceSample = 0f;
+        poweredJumpTick = null;
+        ClearPoses();
         strips.Clear();
     }
+
+    internal void TriggerPoweredJump(ulong tick) => poweredJumpTick = tick;
 
     /// <returns>Whether a position discontinuity cleared the visual history.</returns>
     internal bool Record(ulong tick, Vector2 playerPosition, Vector2 worldAnchor, bool airborne,
@@ -84,6 +103,7 @@ internal sealed class RacePeriodTrail
         if (split)
         {
             CommitHead();
+            ClearPoses();
             head = new WakePoint(worldAnchor, tick, head.Distance, speed, airborne, StartsSpan: true);
             Add(head);
             return discontinuity;
@@ -106,8 +126,21 @@ internal sealed class RacePeriodTrail
         return discontinuity;
     }
 
+    internal void Draw(ref PlayerDrawSet drawInfo, int start, ulong tick, Color team,
+        RacePeriodTrailSettings settings, Color lighting, float breath)
+    {
+        if (!settings.IsRacePeriodTrailEnabled || count == 0 || start >= drawInfo.DrawDataCache.Count)
+            return;
+
+        CapturePose(ref drawInfo, start, tick, lighting);
+        Color tint = drawInfo.drawPlayer.team > 0 ? Color.Lerp(team, NeutralMist, 0.16f) : NeutralMist;
+        Append(drawInfo.DrawDataCache, start, tick, Main.screenPosition, tint, settings,
+            RacePeriodTrailTextures.Streak, lighting, breath, drawInfo.drawPlayer.gravDir);
+    }
+
     internal void Append(List<DrawData> drawData, int start, ulong tick, Vector2 screenPosition,
-        Color team, RacePeriodTrailSettings settings, Texture2D streak, Color? lighting = null)
+        Color team, RacePeriodTrailSettings settings, Texture2D streak, Color? lighting = null,
+        float breath = 0.5f, float gravity = 1f)
     {
         if (!settings.IsRacePeriodTrailEnabled || count == 0 || streak == null || start >= drawData.Count)
             return;
@@ -115,10 +148,19 @@ internal sealed class RacePeriodTrail
         strips.Clear();
         int lifetime = Math.Clamp(settings.WakeLifetimeTicks, 1, 60);
         float maxLength = Bound(settings.WakeLengthPixels, 64f, 4f, 128f);
-        float maxWidth = Bound(settings.WakeWidthPixels, 6.5f, 0.25f, 16f);
-        float opacity = Bound(settings.WakeOpacity, 0.71f, 0f, 1f);
         float fullSpeed = Bound(settings.FullIntensitySpeed, 8f, 1f, 20f);
         float airStrength = Bound(settings.JumpIntensityMultiplier, 1f, 0f, 3f);
+        breath = Math.Clamp(breath, 0f, 1f);
+        float pulse = MathHelper.Lerp(0.53f, 1.15f, breath);
+        float powered = PoweredBoost(tick, settings);
+        float rise = -gravity * (4f + 1.8f * breath);
+        float maxWidth = Bound(settings.WakeWidthPixels, 8.5f, 0.25f, 16f)
+            * (MathHelper.Lerp(0.85f, 1.08f, breath) + powered * 0.5f);
+        float opacity = (Bound(settings.WakeOpacity, 0.65f, 0f, 1f) + powered * 0.45f) * pulse;
+        float echoOpacity = (Bound(settings.WakeEchoOpacity, 0.14f, 0f, 1f) + powered * 0.22f) * pulse;
+
+        AddEchoes(tick, screenPosition, team, settings, lifetime, maxLength, fullSpeed, airStrength, rise, echoOpacity);
+        int firstStrip = strips.Count;
         Vector2 textureSize = new(streak.Width, streak.Height);
         WakePoint newer = head;
         int index = distanceSinceSample >= MinimumSegmentLength ? count - 1 : count - 2;
@@ -141,7 +183,9 @@ internal sealed class RacePeriodTrail
                 if (olderDistance > maxLength)
                     extent = Math.Min(extent, (maxLength - distance) / (olderDistance - distance));
 
-                Vector2 segment = (older.Position - newer.Position) * extent;
+                Vector2 startPosition = newer.Position + Vector2.UnitY * Rise(distance, maxLength, rise);
+                Vector2 endPosition = older.Position + Vector2.UnitY * Rise(olderDistance, maxLength, rise);
+                Vector2 segment = (endPosition - startPosition) * extent;
                 float length = segment.Length();
                 if (length >= MinimumSegmentLength)
                 {
@@ -149,16 +193,17 @@ internal sealed class RacePeriodTrail
                     float midDistance = MathHelper.Lerp(distance, olderDistance, extent * 0.5f);
                     float taper = (1f - midAge / lifetime) * (1f - midDistance / maxLength);
                     float speed = MathHelper.Lerp(newer.Speed, older.Speed, extent * 0.5f);
-                    float strength = MathHelper.Lerp(0.37f, 1f, Math.Clamp(speed / fullSpeed, 0f, 1f));
+                    float strength = SpeedStrength(speed, fullSpeed);
                     float width = maxWidth * strength * MathF.Sqrt(taper);
                     Color color = Tint(team, opacity * strength * taper * (newer.Airborne ? airStrength : 1f),
                         settings, lighting);
 
                     if (color.A != 0)
                     {
-                        Vector2 at = newer.Position + segment * 0.5f - screenPosition;
+                        Vector2 at = startPosition + segment * 0.5f - screenPosition;
+                        float joinedLength = length + Math.Min(0.25f, length * 0.1f);
                         strips.Add(new DrawData(streak, at, null, color, MathF.Atan2(segment.Y, segment.X),
-                            textureSize * 0.5f, new Vector2(length / textureSize.X, width / textureSize.Y),
+                            textureSize * 0.5f, new Vector2(joinedLength / textureSize.X, width / textureSize.Y),
                             SpriteEffects.None) { ignorePlayerRotation = true });
                     }
                 }
@@ -168,9 +213,104 @@ internal sealed class RacePeriodTrail
         }
 
         // On overlapping paths the brighter, newer span stays above the fading wake.
-        strips.Reverse();
+        strips.Reverse(firstStrip, strips.Count - firstStrip);
         drawData.InsertRange(start, strips);
     }
+
+    private void CapturePose(ref PlayerDrawSet drawInfo, int start, ulong tick, Color lighting)
+    {
+        // Only record a fresh movement sample, even if multiple world passes draw the player.
+        if (tick < head.Tick || tick - head.Tick > 1 ||
+            (poseCount > 0 && PoseAt(poseCount - 1).Point.Tick == head.Tick))
+            return;
+
+        poses ??= new WakePose[PoseCapacity];
+        WakePose pose = poses[nextPose] ??= new WakePose();
+        pose.Point = head;
+        pose.Lighting = lighting;
+        pose.Layers.Clear();
+
+        Vector2 pivot = drawInfo.Position + drawInfo.rotationOrigin;
+        Matrix rotation = Matrix.CreateRotationZ(drawInfo.rotation);
+        for (int i = start; i < drawInfo.DrawDataCache.Count; i++)
+        {
+            DrawData copy = drawInfo.DrawDataCache[i];
+            if (copy.texture is null || copy.useDestinationRectangle || copy.color.A == 0)
+                continue;
+            Texture2D mask = RacePeriodTrailTextures.Mask(copy.texture);
+            if (mask is null)
+                continue;
+
+            copy.position += Main.screenPosition;
+            if (!copy.ignorePlayerRotation)
+            {
+                copy.position = pivot + Vector2.Transform(copy.position - pivot, rotation);
+                copy.rotation += drawInfo.rotation;
+            }
+            copy.texture = mask;
+            copy.shader = 0;
+            copy.ignorePlayerRotation = true;
+            pose.Layers.Add(copy);
+        }
+
+        nextPose = (nextPose + 1) % PoseCapacity;
+        poseCount = Math.Min(poseCount + 1, PoseCapacity);
+    }
+
+    private void AddEchoes(ulong tick, Vector2 screenPosition, Color team, RacePeriodTrailSettings settings,
+        int lifetime, float maxLength, float fullSpeed, float airStrength, float rise, float opacity)
+    {
+        for (int i = 0; i < poseCount; i++)
+        {
+            WakePose pose = PoseAt(i);
+            float age = Age(tick, pose.Point.Tick);
+            float distance = (float)(head.Distance - pose.Point.Distance);
+            if (age >= lifetime || distance <= 0f || distance >= maxLength)
+                continue;
+
+            float taper = (1f - age / lifetime) * (1f - distance / maxLength);
+            float separation = Math.Clamp(distance / 12f, 0f, 1f);
+            float alpha = opacity * taper * taper * separation * SpeedStrength(pose.Point.Speed, fullSpeed)
+                * (pose.Point.Airborne ? airStrength : 1f);
+            Vector2 offset = Vector2.UnitY * Rise(distance, maxLength, rise) - screenPosition;
+            foreach (DrawData source in pose.Layers)
+            {
+                Color color = Tint(team, alpha * source.color.A / 255f, settings, pose.Lighting);
+                if (color.A == 0)
+                    continue;
+                DrawData echo = source;
+                echo.position += offset;
+                echo.color = color;
+                strips.Add(echo);
+            }
+        }
+    }
+
+    private WakePose PoseAt(int index) => poses[(nextPose - poseCount + index + PoseCapacity) % PoseCapacity];
+
+    private void ClearPoses()
+    {
+        for (int i = 0; i < poseCount; i++)
+            PoseAt(i).Layers.Clear();
+        nextPose = poseCount = 0;
+    }
+
+    private float PoweredBoost(ulong tick, RacePeriodTrailSettings settings)
+    {
+        if (!settings.IsJumpTrailEnabled || poweredJumpTick is not { } start || tick < start || tick - start >= PoweredBoostTicks)
+            return 0f;
+        float fade = 1f - (tick - start) / (float)PoweredBoostTicks;
+        return Bound(settings.PoweredEchoOpacity, 0.22f, 0f, 1f) * fade * fade;
+    }
+
+    private static float Rise(float distance, float length, float rise)
+    {
+        float progress = Math.Clamp(distance / length, 0f, 1f);
+        return rise * progress * progress;
+    }
+
+    private static float SpeedStrength(float speed, float fullSpeed) =>
+        MathHelper.Lerp(0.37f, 1f, Math.Clamp(speed / fullSpeed, 0f, 1f));
 
     internal static Color Tint(Color team, float alpha, RacePeriodTrailSettings settings, Color? lighting = null)
     {
@@ -181,7 +321,11 @@ internal sealed class RacePeriodTrail
         if (settings.UseWorldLighting && lighting is { } ambient)
         {
             float minimum = Bound(settings.MinimumLighting, 0.1f, 0f, 1f);
-            hue *= Vector3.Clamp(ambient.ToVector3(), new Vector3(minimum), Vector3.One);
+            Vector3 light = ambient.ToVector3();
+            float brightness = MathF.Max(light.X, MathF.Max(light.Y, light.Z));
+            float darkness = 1f - MathHelper.SmoothStep(0f, 1f, brightness * 4f);
+            minimum = Math.Min(1f, minimum * (1f + 0.44f * darkness));
+            hue *= Vector3.Clamp(light, new Vector3(minimum), Vector3.One);
         }
 
         alpha = Bound(alpha, 0f, 0f, 1f);
