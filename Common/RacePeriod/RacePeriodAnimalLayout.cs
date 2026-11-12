@@ -10,6 +10,8 @@ public readonly record struct RacePeriodArtLayout(float Scale, float FloorDepth)
 
 internal static class RacePeriodAnimalLayout
 {
+    private const float AnimalScaleMultiplier = 1.05f;
+
     internal static void Apply(ref PlayerDrawSet drawInfo, int firstDrawIndex, RacePeriodSpriteSheet? drawnCustomSheet)
     {
         Player player = drawInfo.drawPlayer;
@@ -32,6 +34,7 @@ internal static class RacePeriodAnimalLayout
             floorDepth -= player.height / 2 - Player.defaultHeight / 2;
         }
 
+        float scale = art.Scale * AnimalScaleMultiplier;
         Vector2 floorOffset = new(0f, floorDepth);
         for (int i = firstDrawIndex; i < drawInfo.DrawDataCache.Count; i++)
         {
@@ -39,8 +42,8 @@ internal static class RacePeriodAnimalLayout
             if (data.useDestinationRectangle)
                 continue;
 
-            data.position = feet + (data.position - feet - floorOffset) * art.Scale;
-            data.scale *= art.Scale;
+            data.position = feet + (data.position - feet - floorOffset) * scale;
+            data.scale *= scale;
             drawInfo.DrawDataCache[i] = data;
         }
     }
