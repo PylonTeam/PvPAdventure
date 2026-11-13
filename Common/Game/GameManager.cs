@@ -2,6 +2,7 @@ using PylonMatch.Common.Game;
 using ErkySSC.Common.AdminTools;
 using Microsoft.Xna.Framework;
 using PvPAdventure.Common.Game.GameReporters;
+using PvPAdventure.Common.Fishing;
 using PvPAdventure.Common.Statistics;
 using PvPAdventure.Common.Statistics.UI;
 using PvPAdventure.Core.Compat;
@@ -37,10 +38,12 @@ public sealed class GameManager : GameEvent
     {
         Reporting.Begin();
         AdventureWorldRules.SetTimeFrozen(false);
+        AnglerQuestSystem.BeginMatch();
     }
 
     protected override void OnEnded()
     {
+        AnglerQuestSystem.EndMatch();
         Reporting.Complete();
         AdventureWorldRules.EnterLobby();
     }
@@ -49,6 +52,7 @@ public sealed class GameManager : GameEvent
 
     public override void OnDeselected()
     {
+        AnglerQuestSystem.EndMatch();
         Reporting.Abort();
         AdventureWorldRules.SetTimeFrozen(false);
         base.OnDeselected();

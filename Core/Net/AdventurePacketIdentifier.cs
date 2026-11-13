@@ -12,4 +12,5 @@ public enum AdventurePacketIdentifier : byte
     MatchStatsSnapshot,
     ShakingChest,
     TeamPoints,
+    AnglerQuest,
 }

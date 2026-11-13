@@ -1,8 +1,10 @@
+using ErkySSC.Common.RegionProtection.VFX;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using Terraria;
 using Terraria.DataStructures;
+using Terraria.ID;
 using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.RacePeriod;
@@ -26,13 +28,17 @@ public sealed class RacePeriodVisuals : ModPlayer
     private bool hasLastSpriteSheet;
     private int spriteFrame;
     private float spriteFrameCounter;
-    internal RacePeriodTrail Trail { get; private set; } = new();
+    private RacePeriodTrail wake = new();
+    private int trailMountType = -1;
+    private RacePeriodSpriteSheet? trailSpriteSheet;
 
     public override ModPlayer Clone(Player newEntity)
     {
         RacePeriodVisuals clone = (RacePeriodVisuals)base.Clone(newEntity);
         // Character previews and copied players must never share or display live movement history.
-        clone.Trail = new RacePeriodTrail();
+        clone.wake = new RacePeriodTrail();
+        clone.trailMountType = -1;
+        clone.trailSpriteSheet = null;
         return clone;
     }
 
@@ -54,18 +60,14 @@ public sealed class RacePeriodVisuals : ModPlayer
     {
         if (!Player.active || Player.dead || !Player.TryGetModPlayer(out RacePeriodPlayer race) || !race.IsRacing)
         {
-            Trail.Reset();
+            ResetTrail();
             ResetSpriteAnimation();
             return;
         }
 
-        var trailSettings = RacePeriodRules.TrailSettings;
-        if (!Main.dedServ && trailSettings.IsRacePeriodTrailEnabled)
-            Trail.Record(Player.position, Player.velocity.Y != 0f, trailSettings);
-        else
-            Trail.Reset();
-
-        if (!race.TryGetSpriteSheet(out RacePeriodSpriteSheet spriteSheet))
+        bool hasCustom = race.TryGetSpriteSheet(out RacePeriodSpriteSheet spriteSheet);
+        UpdateTrail(hasCustom ? spriteSheet : null);
+        if (!hasCustom)
         {
             ResetSpriteAnimation();
             return;
@@ -113,6 +115,53 @@ public sealed class RacePeriodVisuals : ModPlayer
         }
     }
 
+    private void UpdateTrail(RacePeriodSpriteSheet? spriteSheet)
+    {
+        if (Main.dedServ)
+            return;
+
+        RacePeriodTrailSettings settings = RacePeriodRules.TrailSettings;
+        if (!settings.IsRacePeriodTrailEnabled)
+        {
+            ResetTrail();
+            return;
+        }
+
+        if (trailMountType != Player.mount.Type || trailSpriteSheet != spriteSheet)
+        {
+            ResetTrail();
+            trailMountType = Player.mount.Type;
+            trailSpriteSheet = spriteSheet;
+        }
+
+        Vector2 feet = Player.gravDir < 0f ? Player.Top : Player.Bottom;
+        int heading = Player.velocity.X > 0f ? 1 : Player.velocity.X < 0f ? -1 : Player.direction;
+        Vector2 anchor = feet + new Vector2(-14f * heading, Player.gfxOffY - 16f * Player.gravDir);
+        wake.Record(Main.GameUpdateCount, Player.position, anchor, Player.velocity.Y != 0f, settings);
+    }
+
+    internal void TriggerPoweredJumpTrail() => wake.TriggerPoweredJump(Main.GameUpdateCount);
+
+    internal void DrawTrail(ref PlayerDrawSet drawInfo, int start)
+    {
+        RacePeriodTrailSettings settings = RacePeriodRules.TrailSettings;
+        if (!settings.IsRacePeriodTrailEnabled || start >= drawInfo.DrawDataCache.Count)
+            return;
+
+        Color team = Player.team >= 0 && Player.team < Main.teamColor.Length
+            ? Main.teamColor[Player.team] : Color.White;
+        Color lighting = Lighting.GetColor(Player.Center.ToTileCoordinates());
+        float breath = MathHelper.SmoothStep(0f, 1f, SpawnRegionGlow.GetPulseWave(Player));
+        wake.Draw(ref drawInfo, start, Main.GameUpdateCount, team, settings, lighting, breath);
+    }
+
+    private void ResetTrail()
+    {
+        wake.Reset();
+        trailMountType = -1;
+        trailSpriteSheet = null;
+    }
+
     private void ResetSpriteAnimation()
     {
         spriteAnimationState = SpriteAnimationState.None;
@@ -141,24 +190,23 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
     protected override void Draw(ref PlayerDrawSet drawInfo)
     {
         int start = drawInfo.DrawDataCache.Count;
-        DrawAnimal(ref drawInfo);
-        Player player = drawInfo.drawPlayer;
-        if (player.TryGetModPlayer(out RacePeriodVisuals visuals))
+        RacePeriodSpriteSheet? customSheet = DrawAnimal(ref drawInfo);
+        RacePeriodAnimalLayout.Apply(ref drawInfo, start, customSheet);
+        for (int i = start; i < drawInfo.DrawDataCache.Count; i++)
         {
-            Color teamColor = player.team >= 0 && player.team < Main.teamColor.Length
-                ? Main.teamColor[player.team] : Color.White;
-            var settings = RacePeriodRules.TrailSettings;
-            if (visuals.Trail.IsMoving(settings))
-                visuals.Trail.Append(drawInfo.DrawDataCache, start, player.position, teamColor,
-                    settings, RacePeriodTrailTextures.Mask,
-                    settings.IsWispTrailEnabled ? RacePeriodTrailTextures.Wisp : null,
-                    settings.IsSpeedStreakTrailEnabled ? RacePeriodTrailTextures.Streak : null,
-                    Main.GlobalTimeWrappedHourly, RacePeriodTrailTextures.SoftGlow,
-                    Lighting.GetColor(player.Center.ToTileCoordinates()));
+            DrawData part = drawInfo.DrawDataCache[i];
+            part.shader = RacePeriodGhostShader.BodyShader;
+            drawInfo.DrawDataCache[i] = part;
         }
+
+        if (drawInfo.hideEntirePlayer && drawInfo.drawPlayer.mount.Type == MountID.Wolf && drawInfo.DrawDataCache.Count > start)
+            ModContent.GetInstance<SpawnRegionGlow>().AllowGlowForHiddenRider(ref drawInfo);
+
+        if (drawInfo.drawPlayer.TryGetModPlayer(out RacePeriodVisuals visuals))
+            visuals.DrawTrail(ref drawInfo, start);
     }
 
-    private static void DrawAnimal(ref PlayerDrawSet drawInfo)
+    private static RacePeriodSpriteSheet? DrawAnimal(ref PlayerDrawSet drawInfo)
     {
         if (drawInfo.drawPlayer.TryGetModPlayer(out RacePeriodVisuals visuals) &&
             visuals.TryGetCustomDraw(out RacePeriodSpriteSheet spriteSheet, out int frame))
@@ -170,7 +218,7 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
                 if (spriteSheet.ForegroundTexture is { } foreground)
                     DrawCustomSheet(ref drawInfo, spriteSheet, foreground.Value, frame);
 
-                return;
+                return spriteSheet;
             }
         }
 
@@ -180,6 +228,8 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
             mount.Draw(drawInfo.DrawDataCache, drawType, drawInfo.drawPlayer, drawInfo.Position,
                 drawInfo.colorMount, drawInfo.playerEffect, drawInfo.shadow);
         }
+
+        return null;
     }
 
     private static bool DrawCustomSheet(
@@ -188,7 +238,7 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
         Texture2D texture,
         int frame)
     {
-        if (texture.Height % spriteSheet.TotalFrames != 0)
+        if (texture is null || texture.IsDisposed || texture.Height % spriteSheet.TotalFrames != 0)
             return false;
 
         int frameHeight = texture.Height / spriteSheet.TotalFrames;

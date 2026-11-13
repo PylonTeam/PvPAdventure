@@ -462,6 +462,8 @@ public class DebugFishingCatchProjectile : GlobalProjectile
         Player player = Main.player[projectile.owner];
 
         projectile.ai[0] = 0f;
+        // FishingCheck leaves the previous result untouched when there is no bite.
+        projectile.ai[1] = 0f;
         projectile.localAI[1] = 0f;
 
         if (Main.myPlayer == projectile.owner)

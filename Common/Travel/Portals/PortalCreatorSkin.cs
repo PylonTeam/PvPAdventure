@@ -12,8 +12,7 @@ namespace PvPAdventure.Common.Travel.Portals;
 /// </summary>
 internal static class PortalCreatorSkin
 {
-    private const string SkinPrototype = "portal_creator";
-    private const string SkinName = "portal_gun";
+    private static readonly ProductKey PortalGun = new("portal_creator", "portal_gun");
 
     /// <summary>
     /// True when <paramref name="item"/> has the portal gun skin equipped and a texture exists for
@@ -23,13 +22,7 @@ internal static class PortalCreatorSkin
     {
         texture = null;
 
-        if (item is null || item.IsAir)
-            return false;
-
-        if (!SkinRegistry.TryGetSkin(item, out ShopProduct skin))
-            return false;
-
-        if (skin.Prototype != SkinPrototype || skin.Name != SkinName)
+        if (!SkinRegistry.TryGetSkin(item, out ShopProduct skin) || skin.Key != PortalGun)
             return false;
 
         texture = PortalAssets.GetPortalGunSkinTexture(team);
@@ -40,14 +33,14 @@ internal static class PortalCreatorSkin
     /// Remaps a frame and origin authored against <paramref name="from"/> onto <paramref name="to"/>,
     /// so a skin may have different dimensions than the texture it replaces.
     /// </summary>
-    public static (Rectangle Frame, Vector2 Origin) Rescale(Rectangle frame, Vector2 origin, Texture2D from, Texture2D to)
+    public static (Rectangle? Frame, Vector2 Origin) Rescale(Rectangle? frame, Vector2 origin, Texture2D from, Texture2D to)
     {
         float sx = to.Width / (float)from.Width;
         float sy = to.Height / (float)from.Height;
 
-        return (
-            new Rectangle((int)(frame.X * sx), (int)(frame.Y * sy), (int)(frame.Width * sx), (int)(frame.Height * sy)),
-            origin * new Vector2(sx, sy)
-        );
+        Rectangle? scaledFrame = frame is { } source
+            ? new Rectangle((int)(source.X * sx), (int)(source.Y * sy), (int)(source.Width * sx), (int)(source.Height * sy))
+            : null;
+        return (scaledFrame, origin * new Vector2(sx, sy));
     }
 }

@@ -38,6 +38,8 @@ public readonly record struct RacePeriodSpriteSheet(
     float Scale = 1f,
     int AnchorPlayerHeight = 42)
 {
+    public RacePeriodArtLayout? ArtLayout { get; init; }
+
     public bool IsValid =>
         BodyTexture is not null && TotalFrames > 0 && FrameCropBottom >= 0 && Scale > 0f &&
         AnchorPlayerHeight > 0 &&
