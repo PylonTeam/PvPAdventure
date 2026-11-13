@@ -59,6 +59,10 @@ public class PvPAdventure : Mod
                 Common.NPCs.ShakingChestNetHandler.HandlePacket(reader);
                 break;
 
+            case AdventurePacketIdentifier.AnglerQuest:
+                Common.Fishing.AnglerQuestSystem.HandlePacket(reader, whoAmI);
+                break;
+
             default:
                 Log.Warn($"[Packet] Unknown packet id: {(byte)id} ({id})");
                 break;
