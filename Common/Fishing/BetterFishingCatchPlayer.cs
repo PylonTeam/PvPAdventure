@@ -9,10 +9,8 @@ using Terraria.ModLoader;
 namespace PvPAdventure.Common.Fishing;
 
 /// <summary>
-/// Replaces weak vanilla fishing catches with PvPAdventure reward-focused catches.
-/// - Removes junk/basic fish catches.
-/// - Removes fishable NPC catches by converting them into item rewards.
-/// - Makes crates, potion fish, bait, bars, and utility fishing loot more common.
+/// Converts junk, filler fish, and fishable NPCs into PvPAdventure rewards.
+/// Useful catches keep their original item, including biome fish and crates.
 /// </summary>
 public class BetterFishingCatchPlayer : ModPlayer
 {
@@ -46,26 +44,6 @@ public static class FishingCatchRules
     private const bool RequirePvPAdventurePlaying = false;
     private const bool ModifyLavaFishing = false;
     private const bool ModifyHoneyFishing = false;
-
-    // --- Change catch tuning here ---
-    private const int BonusGoodCatchChanceDivisor = 3; // 1/3 chance to upgrade even acceptable vanilla catches.
-    private const int CrateUpgradeChanceDivisor = 2;   // 1/2 chance to upgrade vanilla crate catches.
-
-    private static readonly int[] BadItemCatches =
-    [
-        ItemID.OldShoe,
-        ItemID.TinCan,
-        ItemID.Seaweed,
-        ItemID.Bass,
-        ItemID.Trout,
-        ItemID.Salmon,
-        ItemID.AtlanticCod,
-        ItemID.RedSnapper,
-        ItemID.Tuna,
-        ItemID.NeonTetra,
-        ItemID.Shrimp,
-        ItemID.PrincessFish,
-    ];
 
     private static readonly WeightedCatch[] PreHardmodeCrates =
     [
@@ -150,21 +128,7 @@ public static class FishingCatchRules
             return;
         }
 
-        if (context.IsVanillaNpcCatch || IsBadCatch(context.VanillaItemDrop))
-        {
-            SetItemCatch(RollGoodCatch(context), ref itemDrop, ref npcSpawn);
-            return;
-        }
-
-        if (IsCrate(context.VanillaItemDrop))
-        {
-            if (Main.rand.NextBool(CrateUpgradeChanceDivisor))
-                SetItemCatch(RollCrate(context), ref itemDrop, ref npcSpawn);
-
-            return;
-        }
-
-        if (Main.rand.NextBool(BonusGoodCatchChanceDivisor))
+        if (context.IsVanillaNpcCatch || !context.IsVanillaItemCatch || IsFillerCatch(context.VanillaItemDrop))
             SetItemCatch(RollGoodCatch(context), ref itemDrop, ref npcSpawn);
     }
 
@@ -185,28 +149,8 @@ public static class FishingCatchRules
         return context.IsWater || ModifyLavaFishing || ModifyHoneyFishing;
     }
 
-    private static bool IsBadCatch(int itemType)
-    {
-        if (itemType <= 0)
-            return true;
-
-        for (int i = 0; i < BadItemCatches.Length; i++)
-            if (BadItemCatches[i] == itemType)
-                return true;
-
-        return false;
-    }
-
-    private static bool IsCrate(int itemType)
-    {
-        return itemType is
-            ItemID.WoodenCrate or
-            ItemID.IronCrate or
-            ItemID.GoldenCrate or
-            ItemID.WoodenCrateHard or
-            ItemID.IronCrateHard or
-            ItemID.GoldenCrateHard;
-    }
+    internal static bool IsFillerCatch(int itemType) => itemType is
+        ItemID.OldShoe or ItemID.TinCan or ItemID.FishingSeaweed or ItemID.Bass;
 
     private static int RollGoodCatch(FishingCatchContext context)
     {
