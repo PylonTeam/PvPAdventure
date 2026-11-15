@@ -10,18 +10,21 @@ public class SoulDropRateSystem : ModSystem
 {
     private static ILHook globalRulesHook;
 
-    private const int NewSoulDropRate = 3; // denominator
+    private const int NewSoulDropRate = 3; // denominator (1 in 3)
 
     public override void PostSetupContent()
     {
-        MethodInfo method = typeof(Terraria.GameContent.ItemDropRules.ItemDropDatabase).GetMethod("RegisterGlobalRules",
+        MethodInfo method = typeof(Terraria.GameContent.ItemDropRules.ItemDropDatabase).GetMethod(
+            "RegisterGlobalRules",
             BindingFlags.NonPublic | BindingFlags.Instance);
+
         globalRulesHook = new ILHook(method, SoulDropILEdit);
     }
 
     public override void Unload()
     {
         globalRulesHook?.Dispose();
+        globalRulesHook = null;
     }
 
     private static void SoulDropILEdit(ILContext il)
@@ -29,45 +32,19 @@ public class SoulDropRateSystem : ModSystem
         ILCursor cursor = new ILCursor(il);
         int replacedCount = 0;
 
-
-        while (cursor.TryGotoNext(MoveType.Before,
+        while (cursor.TryGotoNext(MoveType.After,
+            i => i.MatchLdcI4(520) || i.MatchLdcI4(521),
             i => i.MatchLdcI4(5)))
         {
-
-            var nextCursor = cursor.Clone();
-            bool isSoulDrop = false;
-
-
-            for (int j = 0; j < 100; j++)
-            {
-                if (nextCursor.TryGotoNext(MoveType.After,
-                    i => i.MatchLdcI4(520) || i.MatchLdcI4(521)))
-                {
-                    isSoulDrop = true;
-                    break;
-                }
-            }
-
-            if (isSoulDrop)
-            {
-                cursor.Remove();
-                cursor.Emit(OpCodes.Ldc_I4, NewSoulDropRate);
-                replacedCount++;
-                //ModContent.GetInstance<PvPAdventure>().Logger.Info($"Replaced soul drop rate 5 with {NewSoulDropRate} (instance {replacedCount})");
-            }
-            else
-            {
-                cursor.Index++;
-            }
+            cursor.Prev.OpCode = OpCodes.Ldc_I4;
+            cursor.Prev.Operand = NewSoulDropRate;
+            replacedCount++;
         }
 
-        if (replacedCount > 0)
+        if (replacedCount != 2)
         {
-            //ModContent.GetInstance<PvPAdventure>().Logger.Info($"Successfully changed {replacedCount} soul drop rates from 5 to {NewSoulDropRate}");
-        }
-        else
-        {
-            ModContent.GetInstance<PvPAdventure>().Logger.Error("Failed to find any soul drop rates (5) in RegisterGlobalRules method");
+            ModContent.GetInstance<PvPAdventure>().Logger.Error(
+                $"Expected to replace 2 soul drop rates (Light and Night), but replaced {replacedCount}.");
         }
     }
 }

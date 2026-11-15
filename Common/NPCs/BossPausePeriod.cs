@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using Terraria;
 using Terraria.ID;
@@ -15,9 +16,17 @@ internal class BossPausePeriod : GlobalNPC
 
     private static readonly Dictionary<int, int> PauseDurations = new()
     {
-        { NPCID.Plantera,          30 * 60 },
+        { NPCID.Plantera,          60 * 60 },
         { NPCID.CultistBoss,       60 * 60 },
         { NPCID.SkeletronHead,     60 * 60 },
+        { NPCID.WallofFlesh,       60 * 60 },
+    };
+
+    // Optional extra conditions
+    private static readonly Dictionary<int, Func<bool>> PauseConditions = new()
+    {
+        // Wall of Flesh is only paused until it has been defeated once
+        { NPCID.WallofFlesh, () => !Main.hardMode },
     };
 
     private int _pauseTimer;
@@ -31,6 +40,9 @@ internal class BossPausePeriod : GlobalNPC
     public override void OnSpawn(NPC npc, Terraria.DataStructures.IEntitySource source)
     {
         if (!PauseDurations.TryGetValue(npc.type, out int duration))
+            return;
+
+        if (PauseConditions.TryGetValue(npc.type, out Func<bool> condition) && !condition())
             return;
 
         _pauseTimer = duration;
