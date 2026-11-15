@@ -1,4 +1,5 @@
 ﻿using PvPAdventure.Content.Items.BiomeKeyMolds;
+using Pylon.Common.Equipment;
 using System.Collections.Generic;
 using System.Linq;
 using Terraria;
@@ -47,7 +48,10 @@ public class RecipeManager : ModSystem
 
         };
 
-        for (int i = 0; i < Main.recipe.Length; i++)
+        ILookup<int, Recipe> vanillaReplacements = Main.recipe.Take(Recipe.numRecipes)
+            .Where(recipe => recipe.Mod == null && !recipe.Disabled && itemsToRemove.Contains(recipe.createItem.type))
+            .ToLookup(recipe => recipe.createItem.type);
+        for (int i = 0; i < Recipe.numRecipes; i++)
         {
             Recipe recipe = Main.recipe[i];
             if (recipe.createItem.type != ItemID.None && itemsToRemove.Contains(recipe.createItem.type))
@@ -55,6 +59,8 @@ public class RecipeManager : ModSystem
                 recipe.DisableRecipe();
             }
         }
+
+        int firstAdventureRecipe = Recipe.numRecipes;
 
         // Headstone Recipe
         Recipe.Create(ItemID.Headstone)
@@ -232,5 +238,26 @@ public class RecipeManager : ModSystem
             .AddIngredient(ItemID.Lens, 1)
             .AddIngredient(ItemID.FlinxFur, 3)
             .Register();
+
+        // Only this producer's replacements are changed recipes. Other PvP Adventure producers
+        // can register independent recipes for the same result, such as Shimmer trades.
+        for (int i = firstAdventureRecipe; i < Recipe.numRecipes; i++)
+        {
+            Recipe recipe = Main.recipe[i];
+            if (vanillaReplacements.Contains(recipe.createItem.type))
+            {
+                bool hasChanged = !vanillaReplacements[recipe.createItem.type]
+                    .Any(vanilla => HasSameCraftingRequirements(recipe, vanilla));
+                RecipeChanges.RegisterReplacement(recipe, Mod, hasChanged);
+            }
+        }
     }
+
+    private static bool HasSameCraftingRequirements(Recipe recipe, Recipe vanilla) =>
+        recipe.createItem.stack == vanilla.createItem.stack &&
+        recipe.requiredItem.Select(item => (item.type, item.stack)).OrderBy(item => item.type)
+            .SequenceEqual(vanilla.requiredItem.Select(item => (item.type, item.stack)).OrderBy(item => item.type)) &&
+        recipe.requiredTile.ToHashSet().SetEquals(vanilla.requiredTile) &&
+        recipe.acceptedGroups.ToHashSet().SetEquals(vanilla.acceptedGroups) &&
+        recipe.Conditions.ToHashSet().SetEquals(vanilla.Conditions);
 }
