@@ -6,7 +6,6 @@ using Terraria;
 using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
 using Terraria.ModLoader;
-using PvPAdventure.Content.Items.BrokenShadowFlameItems;
 
 namespace PvPAdventure.Common.Loot.DropRates;
 
@@ -189,11 +188,13 @@ public static class AdventureDropDatabase
             case NPCID.GoblinSummoner:
                 npcLoot.RemoveWhere(drop => true); // Removes all drops
                 npcLoot.Add(ItemDropRule.Common(ItemID.GoldCoin, 1, 3, 3));
-                npcLoot.Add(ItemDropRule.OneFromOptions(1,
-                    ModContent.ItemType<BrokenShadowFlameBow>(),
-                    ModContent.ItemType<BrokenShadowFlameKnife>(),
-                    ModContent.ItemType<BrokenShadowFlameHexDoll>()
-                ));
+                npcLoot.Add(
+                    new FewFromRulesRule(1, 1,
+                        ItemDropRule.Common(ItemID.ShadowFlameBow),
+                        ItemDropRule.Common(ItemID.ShadowFlameKnife),
+                        ItemDropRule.Common(ItemID.ShadowFlameHexDoll)
+                    )
+                );
                 break;
 
             case NPCID.Moth:
@@ -648,6 +649,11 @@ public static class AdventureDropDatabase
                         ItemDropRule.Common(ItemID.HoundiusShootius)
                     )
                 );
+                npcLoot.Add(ItemDropRule.Common(ItemID.Steak, 1, 1, 1));
+                foreach (var drop in drops)
+                {
+                    ModifyDropRate(drop, ItemID.ChesterPetItem, 1, 1);
+                }
                 break;
 
             case NPCID.DukeFishron:

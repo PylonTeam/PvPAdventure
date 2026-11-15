@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Terraria;
 using Terraria.Chat;
+using Terraria.DataStructures;
 using Terraria.ID;
 using Terraria.Localization;
 using Terraria.ModLoader;
@@ -9,10 +10,8 @@ using Terraria.ModLoader;
 namespace PvPAdventure.Common.NPCs;
 
 /// <summary>
-/// - Automatically spawns an undefeated mechanical boss at night <br/>
-/// - Shows vanilla-style warning messages before spawning <br/>
-/// - Selects a valid player and boss dynamically <br/>
-/// - Prevents duplicate spawns in the same night <br/>
+/// - Automatically spawns an undefeated mechanical boss at night
+/// - The bosses spawn at dungeon entrance
 /// </summary>
 public class MechBossSpawnSystem : ModSystem
 {
@@ -58,12 +57,8 @@ public class MechBossSpawnSystem : ModSystem
         {
             if (selectedBoss != -1)
             {
-                Player targetPlayer = FindClosestPlayerToSpawn();
-                if (targetPlayer != null)
-                {
-                    SpawnMechanicalBoss(selectedBoss, targetPlayer);
-                    hasSpawnedTonight = true;
-                }
+                SpawnMechanicalBoss(selectedBoss);
+                hasSpawnedTonight = true;
             }
         }
     }
@@ -77,7 +72,7 @@ public class MechBossSpawnSystem : ModSystem
                !NPC.AnyNPCs(NPCID.Spazmatism) &&
                !NPC.AnyNPCs(NPCID.SkeletronPrime) &&
                HasUndefeatedMechBoss() &&
-               FindClosestPlayerToSpawn() != null;
+               AnyValidPlayer();
     }
 
     private bool HasUndefeatedMechBoss()
@@ -85,27 +80,15 @@ public class MechBossSpawnSystem : ModSystem
         return !NPC.downedMechBoss1 || !NPC.downedMechBoss2 || !NPC.downedMechBoss3;
     }
 
-    private Player FindClosestPlayerToSpawn()
+    private bool AnyValidPlayer()
     {
-        Player closestPlayer = null;
-        float closestDistance = float.MaxValue;
-
-        Vector2 worldSpawn = new Vector2(Main.spawnTileX * 16f, Main.spawnTileY * 16f);
-
         for (int i = 0; i < Main.maxPlayers; i++)
         {
             Player player = Main.player[i];
-            if (player.active && !player.dead && player.ZoneOverworldHeight)
-            {
-                float distance = Vector2.Distance(player.position, worldSpawn);
-                if (distance < closestDistance)
-                {
-                    closestDistance = distance;
-                    closestPlayer = player;
-                }
-            }
+            if (player.active && !player.dead)
+                return true;
         }
-        return closestPlayer;
+        return false;
     }
 
     private int ChooseMechanicalBoss()
@@ -140,10 +123,14 @@ public class MechBossSpawnSystem : ModSystem
         ShowMessage(message, new Color(50, 255, 130));
     }
 
-    private void SpawnMechanicalBoss(int bossType, Player player)
+    private void SpawnMechanicalBoss(int bossType)
     {
-        if (Main.netMode == NetmodeID.MultiplayerClient || player == null)
+        if (Main.netMode == NetmodeID.MultiplayerClient)
             return;
+
+        // Dungeon entrance in world coordinates
+        int spawnX = Main.dungeonX * 16 + 8;
+        int spawnY = Main.dungeonY * 16 - 10 * 16;
 
         string spawnMessage;
 
@@ -151,19 +138,18 @@ public class MechBossSpawnSystem : ModSystem
         {
             case NPCID.TheDestroyer:
                 spawnMessage = "Uh oh!";
-                NPC.SpawnOnPlayer(player.whoAmI, NPCID.TheDestroyer);
+                SpawnBossAt(spawnX, spawnY, NPCID.TheDestroyer);
                 break;
 
             case NPCID.Retinazer:
                 spawnMessage = "Better watch out!";
-                // Spawn both twins
-                NPC.SpawnOnPlayer(player.whoAmI, NPCID.Retinazer);
-                NPC.SpawnOnPlayer(player.whoAmI, NPCID.Spazmatism);
+                SpawnBossAt(spawnX - 48, spawnY, NPCID.Retinazer);
+                SpawnBossAt(spawnX + 48, spawnY, NPCID.Spazmatism);
                 break;
 
             case NPCID.SkeletronPrime:
                 spawnMessage = "Yikes!";
-                NPC.SpawnOnPlayer(player.whoAmI, NPCID.SkeletronPrime);
+                SpawnBossAt(spawnX, spawnY, NPCID.SkeletronPrime);
                 break;
 
             default:
@@ -172,7 +158,21 @@ public class MechBossSpawnSystem : ModSystem
 
         ShowMessage(spawnMessage, new Color(175, 75, 255));
 
-        Terraria.Audio.SoundEngine.PlaySound(SoundID.Roar, player.position);
+        Terraria.Audio.SoundEngine.PlaySound(SoundID.Roar, new Vector2(spawnX, spawnY));
+    }
+
+    private static void SpawnBossAt(int x, int y, int type)
+    {
+        int index = NPC.NewNPC(new EntitySource_WorldEvent(), x, y, type);
+        if (index < 0 || index >= Main.maxNPCs)
+            return;
+
+        NPC npc = Main.npc[index];
+        npc.TargetClosest();
+        npc.netUpdate = true;
+
+        if (Main.netMode == NetmodeID.Server)
+            NetMessage.SendData(MessageID.SyncNPC, number: index);
     }
 
     private void ShowMessage(string message, Color color)
@@ -186,6 +186,7 @@ public class MechBossSpawnSystem : ModSystem
             Main.NewText(message, color.R, color.G, color.B);
         }
     }
+
     public override void PostSetupContent()
     {
         hasAnnouncedTonight = false;

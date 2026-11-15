@@ -5,7 +5,6 @@ using Terraria;
 using Terraria.ID;
 using Terraria.Localization;
 using Terraria.ModLoader;
-using PvPAdventure.Content.Items.BrokenShadowFlameItems;
 namespace PvPAdventure.Common.Recipes;
 
 [Autoload(Side = ModSide.Both)]
@@ -212,19 +211,6 @@ public class RecipeManager : ModSystem
             .AddTile(TileID.Anvils)
             .DisableDecraft()
             .Register();
-        // Recipe for all repaired shadowflame weapons
-        Recipe.Create(ItemID.ShadowFlameBow, 1)
-        .AddIngredient(ModContent.ItemType<BrokenShadowFlameBow>(), 1)
-        .AddTile(TileID.TinkerersWorkbench)
-         .Register();
-        Recipe.Create(ItemID.ShadowFlameKnife, 1)
-        .AddIngredient(ModContent.ItemType<BrokenShadowFlameKnife>(), 1)
-        .AddTile(TileID.TinkerersWorkbench)
-        .Register();
-        Recipe.Create(ItemID.ShadowFlameHexDoll, 1)
-        .AddIngredient(ModContent.ItemType<BrokenShadowFlameHexDoll>(), 1)
-        .AddTile(TileID.TinkerersWorkbench)
-        .Register();
 
         // Recipe for DeerThing
         Recipe.Create(ItemID.DeerThing, 1)
