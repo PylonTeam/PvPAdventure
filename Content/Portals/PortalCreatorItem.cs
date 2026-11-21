@@ -73,14 +73,14 @@ public class PortalCreatorItem : ModItem
         if (player?.whoAmI != Main.myPlayer)
             return true;
 
-        if (!CanCreatePortal(player, true))
+        if (player.GetModPlayer<PortalPlayer>().CreationAttempt.Pending || !CanCreatePortal(player, true))
             return false;
 
         int requestId = player.GetModPlayer<PortalPlayer>().CreationAttempt.Begin();
         if (Main.netMode == NetmodeID.MultiplayerClient)
             PortalNetHandler.SendPortalCreatorUse(player.selectedItem, requestId);
         else
-            PortalSystem.StartPortalCreation(player, requestId);
+            return PortalSystem.StartPortalCreation(player, requestId);
 
         return true;
     }
@@ -146,7 +146,7 @@ public class PortalCreatorItem : ModItem
     {
         SetPortalCreationTime(player.inventory[itemSlotIndex]);
 
-        if (!CanUseItem(player) || player.CCed || player.itemAnimation > 0 || player.reuseDelay > 0)
+        if (!CanUseItem(player) || player.CCed || player.itemAnimation > 0 || player.itemTime > 0 || player.reuseDelay > 0)
             return;
 
         BeginUse(player, itemSlotIndex);
@@ -158,6 +158,9 @@ public class PortalCreatorItem : ModItem
             return false;
 
         Item item = player.inventory[index];
+        PortalCreationAttempt attempt = player.GetModPlayer<PortalPlayer>().CreationAttempt;
+        int previousRequestId = attempt.RequestId;
+        int previousSlot = player.selectedItem;
 
         player.selectedItem = index;
         player.controlUseItem = true;
@@ -165,16 +168,31 @@ public class PortalCreatorItem : ModItem
 
         player.ItemCheck();
 
-        player.itemAnimation = item.useAnimation;
-        player.itemAnimationMax = item.useAnimation;
-        player.itemTime = item.useTime;
-        player.itemTimeMax = item.useTime;
-
         player.controlUseItem = false;
         player.releaseUseItem = false;
         player.channel = false;
 
-        return player.itemAnimation > 0;
+        // ItemCheck can start an animation without invoking UseItem (a leftover
+        // itemTime, or another mod's item-use hook). Never turn that into a full
+        // countdown: only UseItem actually dispatches the creation request.
+        if (attempt.RequestId == previousRequestId)
+        {
+            ResetUseState(player);
+            player.selectedItem = previousSlot;
+            return false;
+        }
+
+        if (!attempt.Pending)
+        {
+            ResetUseState(player);
+            return false;
+        }
+
+        player.itemAnimation = item.useAnimation;
+        player.itemAnimationMax = item.useAnimation;
+        player.itemTime = item.useTime;
+        player.itemTimeMax = item.useTime;
+        return true;
     }
 
     public override void UseStyle(Player player, Rectangle heldItemFrame)
@@ -239,7 +257,7 @@ public class PortalCreatorItem : ModItem
     public override bool CanUseItem(Player player)
     {
         SetPortalCreationTime(Item);
-        return CanCreatePortal(player, true);
+        return !player.GetModPlayer<PortalPlayer>().CreationAttempt.Pending && CanCreatePortal(player, true);
     }
 
     public static bool CanCreatePortal(Player player, bool warn)

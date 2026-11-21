@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <DefaultItemExcludes>$(DefaultItemExcludes);_Work/**</DefaultItemExcludes>
+    <PortalItemSource Condition="'$(PortalItemSource)' == ''">../../Content/Portals/PortalCreatorItem.cs</PortalItemSource>
+    <PortalNetSource Condition="'$(PortalNetSource)' == ''">../../Common/Travel/Portals/PortalNetHandler.cs</PortalNetSource>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(PortalItemSource)" Link="Production/PortalCreatorItem.cs" />
+    <Compile Include="../../Content/Portals/PortalCreationProjectile.cs" Link="Production/PortalCreationProjectile.cs" />
+    <Compile Include="../../Common/Travel/Portals/PortalCreationAttempt.cs" Link="Production/PortalCreationAttempt.cs" />
+    <Compile Include="$(PortalNetSource)" Link="Production/PortalNetHandler.cs" />
+    <Compile Include="../../Common/Travel/Portals/PortalSystem.cs" Link="Production/PortalSystem.cs" />
+    <Compile Include="../../Core/Net/AdventurePacketIdentifier.cs" Link="Production/AdventurePacketIdentifier.cs" />
+  </ItemGroup>
+</Project>

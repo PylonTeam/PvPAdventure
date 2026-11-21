@@ -181,8 +181,10 @@ public static class PortalNetHandler
         if (Main.netMode != NetmodeID.MultiplayerClient)
             return;
 
-        // These travel over the same ordered connection. Validate against the movement
-        // state that started this attempt, rather than the previous tick's moving state.
+        // Item use can run before the next inventory sync (e.g. after moving
+        // the mirror). Send both validation inputs over the ordered connection
+        // before asking the server to create the portal.
+        NetMessage.SendData(MessageID.SyncEquipment, -1, -1, null, Main.myPlayer, slot);
         NetMessage.SendData(MessageID.PlayerControls, -1, -1, null, Main.myPlayer);
 
         ModPacket packet = ModContent.GetInstance<PvPAdventure>().GetPacket();
