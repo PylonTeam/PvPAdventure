@@ -31,23 +31,26 @@ internal sealed class RacePeriodMapHeads : ModSystem
             heads.Add(new AnimalArt(animal.MountType, body), head);
         }
 
-        ModContent.GetInstance<MapPlayerHeadControlSystem>().MapHeadTextureProvider = GetHead;
+        ModContent.GetInstance<MapPlayerHeadControlSystem>().MapHeadAppearanceProvider = GetHead;
     }
 
     public override void Unload()
     {
         MapPlayerHeadControlSystem map = ModContent.GetInstance<MapPlayerHeadControlSystem>();
-        if (map?.MapHeadTextureProvider == GetHead)
-            map.MapHeadTextureProvider = null;
+        if (map?.MapHeadAppearanceProvider == GetHead)
+            map.MapHeadAppearanceProvider = null;
         heads.Clear();
     }
 
-    private Texture2D? GetHead(Player player)
+    private MapHeadAppearance? GetHead(Player player)
     {
         if (player.ghost || player.dead || !player.TryGetModPlayer(out RacePeriodPlayer race) || !race.IsRacing)
             return null;
 
         Asset<Texture2D>? body = race.TryGetSpriteSheet(out RacePeriodSpriteSheet sheet) ? sheet.BodyTexture : null;
-        return heads.TryGetValue(new AnimalArt(player.mount.Type, body), out Asset<Texture2D>? head) ? head.Value : null;
+        if (!heads.TryGetValue(new AnimalArt(player.mount.Type, body), out Asset<Texture2D>? head))
+            return null;
+
+        return new MapHeadAppearance(head.Value);
     }
 }

@@ -10,6 +10,8 @@ Mods: {
 			Shimmer: Shimmer
 		}
 
+		GameManager.InfoTooltip: Set the duration and countdown under Match setup, then press Start Game to start
+
 		Keybinds: {
 			BountyShop.DisplayName: Bounty Shop
 			Dash.DisplayName: Dash

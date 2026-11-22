@@ -1,3 +1,4 @@
+using ErkySSC.Common.RegionProtection.VFX;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.RuntimeDetour;
@@ -13,7 +14,6 @@ namespace PvPAdventure.Common.RacePeriod;
 internal sealed class RacePeriodGhostShader : ModSystem
 {
     internal const int BodyShader = int.MinValue;
-    private const float BodyOpacity = 0.88f;
 
     private delegate void SetShaderForData(Player player, int headShader, ref DrawData data);
     private delegate void ShaderHook(SetShaderForData original, Player player, int headShader, ref DrawData data);
@@ -25,7 +25,8 @@ internal sealed class RacePeriodGhostShader : ModSystem
     public override void Load()
     {
         Asset<Effect> effect = Mod.Assets.Request<Effect>("Assets/Effects/SpiritAnimalGhost", AssetRequestMode.ImmediateLoad);
-        shader = new ArmorShaderData(effect, "GhostPass").UseOpacity(BodyOpacity);
+        shader = new ArmorShaderData(effect, "GhostPass").UseOpacity(RacePeriodPulse.BrightBodyOpacity);
+        effect.Value.Parameters["uDimOpacity"].SetValue(RacePeriodPulse.DimBodyOpacity);
         wave = effect.Value.Parameters["uWave"];
         var method = typeof(PlayerDrawHelper).GetMethod(nameof(PlayerDrawHelper.SetShaderForData),
             [typeof(Player), typeof(int), typeof(DrawData).MakeByRefType()]);
@@ -45,8 +46,15 @@ internal sealed class RacePeriodGhostShader : ModSystem
             original(player, headShader, ref data);
     }
 
-    internal static void AppendGlow(ref PlayerDrawSet drawInfo, int start) =>
-        RacePeriodAnimalGlow.Append(ref drawInfo, start);
+    internal static void AppendGlow(ref PlayerDrawSet drawInfo, int start)
+    {
+        if (drawInfo.DrawDataCache.Count <= start)
+            return;
+
+        float pulse = RacePeriodPulse.GetWave(drawInfo.drawPlayer);
+        float rimOpacity = RacePeriodPulse.GetOutlineOpacity(pulse);
+        ModContent.GetInstance<SpawnRegionGlow>().UseMountGlow(ref drawInfo, new MountGlow(BodyShader, pulse, rimOpacity));
+    }
 
     public override void Unload()
     {
@@ -54,6 +62,6 @@ internal sealed class RacePeriodGhostShader : ModSystem
         hook = null;
         shader = null;
         wave = null;
-        RacePeriodAnimalGlow.Unload();
+        Main.QueueMainThreadAction(RacePeriodAnimalTextures.Dispose);
     }
 }

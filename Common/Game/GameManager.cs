@@ -8,6 +8,7 @@ using PvPAdventure.Common.Statistics.UI;
 using PvPAdventure.Core.Compat;
 using PylonMatch.Common.Game;
 using System.Collections.Generic;
+using Terraria.Localization;
 using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.Game;
@@ -18,6 +19,7 @@ public sealed class GameManager : GameEvent
     private static AdventureMatchReportingSystem Reporting => ModContent.GetInstance<AdventureMatchReportingSystem>();
     public override string Id => "pvpa";
     public override string DisplayName => "PvP Adventure";
+    public override string ManagerTooltip => Language.GetTextValue("Mods.PvPAdventure.GameManager.InfoTooltip");
     public override int Priority => 100;
     public override string StartingRegionKey => AdventureRegionSystem.RegionKey;
     public override bool ManagesStartingRegion => true;
