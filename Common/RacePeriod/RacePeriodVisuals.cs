@@ -1,10 +1,8 @@
-using ErkySSC.Common.RegionProtection.VFX;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using Terraria;
 using Terraria.DataStructures;
-using Terraria.ID;
 using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.RacePeriod;
@@ -151,7 +149,7 @@ public sealed class RacePeriodVisuals : ModPlayer
         Color team = Player.team >= 0 && Player.team < Main.teamColor.Length
             ? Main.teamColor[Player.team] : Color.White;
         Color lighting = Lighting.GetColor(Player.Center.ToTileCoordinates());
-        float breath = MathHelper.SmoothStep(0f, 1f, SpawnRegionGlow.GetPulseWave(Player));
+        float breath = MathHelper.SmoothStep(0f, 1f, RacePeriodPulse.GetWave(Player));
         wake.Draw(ref drawInfo, start, Main.GameUpdateCount, team, settings, lighting, breath);
     }
 
@@ -191,7 +189,6 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
     {
         int start = drawInfo.DrawDataCache.Count;
         RacePeriodSpriteSheet? customSheet = DrawAnimal(ref drawInfo);
-        RacePeriodAnimalLayout.Apply(ref drawInfo, start, customSheet);
         for (int i = start; i < drawInfo.DrawDataCache.Count; i++)
         {
             DrawData part = drawInfo.DrawDataCache[i];
@@ -199,11 +196,11 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
             drawInfo.DrawDataCache[i] = part;
         }
 
-        if (drawInfo.hideEntirePlayer && drawInfo.drawPlayer.mount.Type == MountID.Wolf && drawInfo.DrawDataCache.Count > start)
-            ModContent.GetInstance<SpawnRegionGlow>().AllowGlowForHiddenRider(ref drawInfo);
-
         if (drawInfo.drawPlayer.TryGetModPlayer(out RacePeriodVisuals visuals))
             visuals.DrawTrail(ref drawInfo, start);
+
+        // Capture the animal pose for its wake before adding the separate outer halo.
+        RacePeriodGhostShader.AppendGlow(ref drawInfo, start);
     }
 
     private static RacePeriodSpriteSheet? DrawAnimal(ref PlayerDrawSet drawInfo)

@@ -1,4 +1,4 @@
-using ErkySSC.Common.RegionProtection.VFX;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.RuntimeDetour;
 using ReLogic.Content;
@@ -13,7 +13,7 @@ namespace PvPAdventure.Common.RacePeriod;
 internal sealed class RacePeriodGhostShader : ModSystem
 {
     internal const int BodyShader = int.MinValue;
-    private const float BodyOpacity = 0.60f;
+    private const float BodyOpacity = 0.88f;
 
     private delegate void SetShaderForData(Player player, int headShader, ref DrawData data);
     private delegate void ShaderHook(SetShaderForData original, Player player, int headShader, ref DrawData data);
@@ -36,12 +36,17 @@ internal sealed class RacePeriodGhostShader : ModSystem
     {
         if (data.shader == BodyShader)
         {
-            wave.SetValue(SpawnRegionGlow.GetPulseWave(player));
-            shader.Apply(player, data);
+            wave.SetValue(RacePeriodPulse.GetWave(player));
+            Color team = player.team > 0 && player.team < Main.teamColor.Length
+                ? Main.teamColor[player.team] : Color.White;
+            shader.UseColor(team).Apply(player, data);
         }
         else
             original(player, headShader, ref data);
     }
+
+    internal static void AppendGlow(ref PlayerDrawSet drawInfo, int start) =>
+        RacePeriodAnimalGlow.Append(ref drawInfo, start);
 
     public override void Unload()
     {
@@ -49,5 +54,6 @@ internal sealed class RacePeriodGhostShader : ModSystem
         hook = null;
         shader = null;
         wave = null;
+        RacePeriodAnimalGlow.Unload();
     }
 }

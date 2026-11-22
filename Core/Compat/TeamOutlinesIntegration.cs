@@ -28,7 +28,7 @@ internal sealed class TeamOutlinesIntegration : ModSystem
     }
 
     private static bool ExcludeRaceTrail(Player player, DrawData data) =>
-        RacePeriodTrailTextures.IsTrailTexture(data.texture);
+        RacePeriodTrailTextures.IsTrailTexture(data.texture) || RacePeriodAnimalGlow.IsGlowTexture(data.texture);
 
     private static Team? BedTeam(Point origin) =>
         ModContent.GetInstance<TeamBedSystem>().TryGetTeam(origin, out Team team) ? team : null;
