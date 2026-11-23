@@ -44,6 +44,9 @@ internal sealed class AnglerQuestSystem : ModSystem
         public bool InHardmode;
         public AnglerOffer Offer;
         public AnglerOrder CarryOver;
+        public AnglerAccessoryRewards AccessoryRewards;
+
+        public int Completed => PreHardmodeCompleted + HardmodeCompleted;
     }
 
     private const int RewardInventorySlots = 50;
@@ -184,8 +187,7 @@ internal sealed class AnglerQuestSystem : ModSystem
             slot = player.FindItem(order.Fish);
         }
 
-        bool firstTurnInBeforeSync = revision == 0 &&
-            quest.PreHardmodeCompleted == 0 && quest.HardmodeCompleted == 0;
+        bool firstTurnInBeforeSync = revision == 0 && quest.Completed == 0;
         if ((revision != quest.Revision && !firstTurnInBeforeSync) || slot < 0)
         {
             SendView(player, quest, dialogueNpc: argument);
@@ -203,7 +205,14 @@ internal sealed class AnglerQuestSystem : ModSystem
             quest.CarryOver = default;
         player.anglerQuestsFinished++;
 
-        GiveReward(player, Main.npc[argument], order, changedSlots);
+        NPC angler = Main.npc[argument];
+        GiveReward(player, angler, new Item(order.Reward, order.Stack), changedSlots);
+        int armor = AnglerOrders.GetArmorReward(quest.Completed);
+        if (armor != ItemID.None)
+            GiveReward(player, angler, new Item(armor), changedSlots);
+        int accessory = quest.AccessoryRewards.Roll(quest.Completed, Main.rand.Next);
+        if (accessory != ItemID.None)
+            GiveReward(player, angler, new Item(accessory), changedSlots);
         RefreshOffer(player, quest, delivered: true);
         AnglerQuestNotice notice = quest.Offer.Status == AnglerQuestStatus.WaitForHardmode
             ? AnglerQuestNotice.PreHardmodeChapterFinished
@@ -260,10 +269,8 @@ internal sealed class AnglerQuestSystem : ModSystem
             Vector2.DistanceSquared(player.Center, angler.Center) <= AnglerChatRange * AnglerChatRange;
     }
 
-    private static void GiveReward(Player player, NPC angler, AnglerOrder order, HashSet<int> changedSlots)
+    private static void GiveReward(Player player, NPC angler, Item item, HashSet<int> changedSlots)
     {
-        var source = new EntitySource_Gift(angler);
-        var item = new Item(order.Reward, order.Stack);
         for (int slot = 0; slot < RewardInventorySlots && item.maxStack > 1 && item.stack > 0; slot++)
         {
             Item existing = player.inventory[slot];
@@ -283,7 +290,7 @@ internal sealed class AnglerQuestSystem : ModSystem
             return;
         }
 
-        int drop = Item.NewItem(source, player.Hitbox, item.type, item.stack, noBroadcast: true, noGrabDelay: true);
+        int drop = Item.NewItem(new EntitySource_Gift(angler), player.Hitbox, item.type, item.stack, noBroadcast: true, noGrabDelay: true);
         if (Main.netMode == NetmodeID.Server && drop < Main.maxItems)
         {
             Main.item[drop].playerIndexTheItemIsReservedFor = player.whoAmI;
@@ -296,7 +303,7 @@ internal sealed class AnglerQuestSystem : ModSystem
         int dialogueNpc = -1, HashSet<int> changedSlots = null)
     {
         var view = new AnglerQuestView(quest.Revision, quest.Offer.Order.Fish,
-            quest.PreHardmodeCompleted + quest.HardmodeCompleted, quest.HardmodeCompleted, quest.Offer.Status, notice);
+            quest.Completed, quest.HardmodeCompleted, quest.Offer.Status, notice);
         if (Main.netMode == NetmodeID.SinglePlayer)
         {
             if (changedSlots?.Count > 0)

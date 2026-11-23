@@ -52,6 +52,24 @@ internal static class AnglerOrders
         new(ItemID.AmanitaFungifin, ItemID.TruffleWorm, Requirement: AnglerProgression.Golem),
     ];
 
+    private static readonly AnglerOrder[] HardmodeRepeatOrders =
+    [
+        new(ItemID.Bunnyfish, ItemID.MasterBait, 3),
+        new(ItemID.TundraTrout, ItemID.SonarPotion),
+        new(ItemID.Mudfish, ItemID.FishingPotion),
+        new(ItemID.Pixiefish, ItemID.MasterBait, 3),
+        new(ItemID.Clownfish, ItemID.SonarPotion),
+        new(ItemID.AmanitaFungifin, ItemID.FishingPotion),
+    ];
+
+    internal static int GetArmorReward(int completedDeliveries) => completedDeliveries switch
+    {
+        1 => ItemID.AnglerHat,
+        3 => ItemID.AnglerVest,
+        5 => ItemID.AnglerPants,
+        _ => ItemID.None,
+    };
+
     internal static AnglerProgression CurrentProgression
     {
         get
@@ -76,7 +94,13 @@ internal static class AnglerOrders
         AnglerOrder[] chapter = hardmode ? HardmodeOrders : PreHardmodeOrders;
         int completed = hardmode ? hardmodeCompleted : preHardmodeCompleted;
         if (completed >= chapter.Length)
-            return new(hardmode ? AnglerQuestStatus.Complete : AnglerQuestStatus.WaitForHardmode);
+        {
+            if (!hardmode)
+                return new(AnglerQuestStatus.WaitForHardmode);
+
+            int repeatIndex = (completed - chapter.Length) % HardmodeRepeatOrders.Length;
+            return new(AnglerQuestStatus.Active, HardmodeRepeatOrders[repeatIndex]);
+        }
 
         AnglerOrder order = chapter[completed];
         if ((progress & order.Requirement) == order.Requirement)
