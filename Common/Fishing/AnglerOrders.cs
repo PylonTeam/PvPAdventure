@@ -52,21 +52,16 @@ internal static class AnglerOrders
         new(ItemID.AmanitaFungifin, ItemID.TruffleWorm, Requirement: AnglerProgression.Golem),
     ];
 
-    private static readonly AnglerOrder[] HardmodeRepeatOrders =
-    [
-        new(ItemID.Bunnyfish, ItemID.MasterBait, 3),
-        new(ItemID.TundraTrout, ItemID.SonarPotion),
-        new(ItemID.Mudfish, ItemID.FishingPotion),
-        new(ItemID.Pixiefish, ItemID.MasterBait, 3),
-        new(ItemID.Clownfish, ItemID.SonarPotion),
-        new(ItemID.AmanitaFungifin, ItemID.FishingPotion),
-    ];
+    internal static bool IsHardmodeRepeat(int hardmodeCompleted) => hardmodeCompleted >= HardmodeOrders.Length;
 
-    internal static int GetArmorReward(int completedDeliveries) => completedDeliveries switch
+    internal static int GetFishingGearReward(int completedDeliveries) => completedDeliveries switch
     {
         1 => ItemID.AnglerHat,
+        2 => ItemID.HighTestFishingLine,
         3 => ItemID.AnglerVest,
+        4 => ItemID.TackleBox,
         5 => ItemID.AnglerPants,
+        6 => ItemID.AnglerEarring,
         _ => ItemID.None,
     };
 
@@ -93,16 +88,10 @@ internal static class AnglerOrders
         bool hardmode = progress.HasFlag(AnglerProgression.Hardmode);
         AnglerOrder[] chapter = hardmode ? HardmodeOrders : PreHardmodeOrders;
         int completed = hardmode ? hardmodeCompleted : preHardmodeCompleted;
-        if (completed >= chapter.Length)
-        {
-            if (!hardmode)
-                return new(AnglerQuestStatus.WaitForHardmode);
+        if (!hardmode && completed >= chapter.Length)
+            return new(AnglerQuestStatus.WaitForHardmode);
 
-            int repeatIndex = (completed - chapter.Length) % HardmodeRepeatOrders.Length;
-            return new(AnglerQuestStatus.Active, HardmodeRepeatOrders[repeatIndex]);
-        }
-
-        AnglerOrder order = chapter[completed];
+        AnglerOrder order = chapter[Math.Min(completed, chapter.Length - 1)];
         if ((progress & order.Requirement) == order.Requirement)
             return new(AnglerQuestStatus.Active, order);
 

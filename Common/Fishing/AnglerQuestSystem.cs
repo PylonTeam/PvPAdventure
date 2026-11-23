@@ -44,7 +44,6 @@ internal sealed class AnglerQuestSystem : ModSystem
         public bool InHardmode;
         public AnglerOffer Offer;
         public AnglerOrder CarryOver;
-        public AnglerAccessoryRewards AccessoryRewards;
 
         public int Completed => PreHardmodeCompleted + HardmodeCompleted;
     }
@@ -194,6 +193,7 @@ internal sealed class AnglerQuestSystem : ModSystem
             return;
         }
 
+        bool repeat = quest.InHardmode && !carryingEarlyOrder && AnglerOrders.IsHardmodeRepeat(quest.HardmodeCompleted);
         var changedSlots = new HashSet<int> { slot };
         if (--player.inventory[slot].stack == 0)
             player.inventory[slot].TurnToAir();
@@ -207,12 +207,9 @@ internal sealed class AnglerQuestSystem : ModSystem
 
         NPC angler = Main.npc[argument];
         GiveReward(player, angler, new Item(order.Reward, order.Stack), changedSlots);
-        int armor = AnglerOrders.GetArmorReward(quest.Completed);
-        if (armor != ItemID.None)
-            GiveReward(player, angler, new Item(armor), changedSlots);
-        int accessory = quest.AccessoryRewards.Roll(quest.Completed, Main.rand.Next);
-        if (accessory != ItemID.None)
-            GiveReward(player, angler, new Item(accessory), changedSlots);
+        int gearReward = repeat ? ItemID.None : AnglerOrders.GetFishingGearReward(quest.Completed);
+        if (gearReward != ItemID.None)
+            GiveReward(player, angler, new Item(gearReward), changedSlots);
         RefreshOffer(player, quest, delivered: true);
         AnglerQuestNotice notice = quest.Offer.Status == AnglerQuestStatus.WaitForHardmode
             ? AnglerQuestNotice.PreHardmodeChapterFinished
