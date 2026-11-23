@@ -12,6 +12,15 @@ Mods: {
 
 		GameManager.InfoTooltip: Set the duration and countdown under Match setup, then press Start Game to start
 
+		Angler: {
+			PreHardmodeChapterFinished: You got all of ’em? Huh. I thought you’d give up halfway. Lemme see… oh, he’s perfect. Here, take my good rod. Now go help your team. You can’t fish all day! Oh, and come back when the Wall goes down. I’ll think of something by then.
+			WaitForHardmode: Come back when the Wall goes down. I’ll think of something by then.
+			WaitForMechanicalBoss: Go knock out one of those mechanical bosses. Then I’ve got a fish for you.
+			WaitForPlantera: Come back when Plantera’s dealt with. I’ve got something in mind.
+			WaitForGolem: Deal with Golem first. Then I’ve got one last fish for you.
+			Complete: That’s the whole list. Go see what your team’s up to.
+		}
+
 		Keybinds: {
 			BountyShop.DisplayName: Bounty Shop
 			Dash.DisplayName: Dash

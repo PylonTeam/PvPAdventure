@@ -90,24 +90,12 @@ public static class FishingCatchRules
         new(ItemID.FishingPotion, 16),
     ];
 
-    private static readonly WeightedCatch[] PreHardmodeBars =
+    private static readonly WeightedCatch[] Categories =
     [
-        new(ItemID.IronBar, 22),
-        new(ItemID.LeadBar, 22),
-        new(ItemID.SilverBar, 18),
-        new(ItemID.TungstenBar, 18),
-        new(ItemID.GoldBar, 10),
-        new(ItemID.PlatinumBar, 10),
-    ];
-
-    private static readonly WeightedCatch[] HardmodeBars =
-    [
-        new(ItemID.CobaltBar, 18),
-        new(ItemID.PalladiumBar, 18),
-        new(ItemID.MythrilBar, 16),
-        new(ItemID.OrichalcumBar, 16),
-        new(ItemID.AdamantiteBar, 16),
-        new(ItemID.TitaniumBar, 16),
+        new(0, 45), // Crates
+        new(1, 20), // Potion fish
+        new(2, 22), // Fishing utility loot
+        new(3, 13), // Fishing supplies
     ];
 
     public static void Apply(FishingCatchContext context, ref int itemDrop, ref int npcSpawn, ref AdvancedPopupRequest sonar, ref Vector2 sonarPosition)
@@ -154,25 +142,37 @@ public static class FishingCatchRules
 
     private static int RollGoodCatch(FishingCatchContext context)
     {
-        // --- Change overall reward category weights here ---
-        WeightedCatch[] categories =
-        [
-            new(0, 45), // Crates
-            new(1, 20), // Potion fish
-            new(2, 15), // Fishing utility loot
-            new(3, 12), // Fishing supplies
-            new(4, 8),  // Bars
-        ];
-
-        return WeightedCatchPool.Roll(categories) switch
+        return WeightedCatchPool.Roll(Categories) switch
         {
             0 => RollCrate(context),
             1 => WeightedCatchPool.Roll(PotionFish),
-            2 => WeightedCatchPool.Roll(UtilityFishingLoot),
+            2 => RollUtilityLoot(context.Attempt),
             3 => WeightedCatchPool.Roll(FishingSupplies),
-            4 => WeightedCatchPool.Roll(context.IsHardmode ? HardmodeBars : PreHardmodeBars),
             _ => RollCrate(context),
         };
+    }
+
+    private static int RollUtilityLoot(FishingAttempt attempt)
+    {
+        // Use the bobber's location and pond size as in the regular Ocean catch rules.
+        bool ocean = attempt.heightLevel <= 1 && attempt.waterTilesCount > 1000 &&
+            (attempt.X < 380 || attempt.X > Main.maxTilesX - 380);
+        bool belowSurface = attempt.heightLevel > 1;
+        Span<WeightedCatch> eligible = stackalloc WeightedCatch[UtilityFishingLoot.Length];
+        int count = 0;
+        foreach (WeightedCatch entry in UtilityFishingLoot)
+        {
+            bool canCatch = entry.ItemType switch
+            {
+                ItemID.ReaverShark or ItemID.SawtoothShark or ItemID.Swordfish => ocean,
+                ItemID.Rockfish => belowSurface,
+                _ => true,
+            };
+            if (canCatch)
+                eligible[count++] = entry;
+        }
+
+        return WeightedCatchPool.Roll(eligible[..count]);
     }
 
     private static int RollCrate(FishingCatchContext context)
@@ -218,7 +218,9 @@ public readonly record struct WeightedCatch(int ItemType, int Weight);
 /// </summary>
 public static class WeightedCatchPool
 {
-    public static int Roll(WeightedCatch[] entries)
+    public static int Roll(WeightedCatch[] entries) => Roll(entries.AsSpan());
+
+    internal static int Roll(ReadOnlySpan<WeightedCatch> entries)
     {
         int total = 0;
 

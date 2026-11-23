@@ -1,0 +1,93 @@
+using System;
+using Terraria;
+using Terraria.ID;
+
+namespace PvPAdventure.Common.Fishing;
+
+[Flags]
+internal enum AnglerProgression : byte
+{
+    PreHardmode = 0,
+    Hardmode = 1,
+    MechanicalBoss = 2,
+    Plantera = 4,
+    Golem = 8,
+}
+
+internal enum AnglerQuestStatus : byte
+{
+    None,
+    Active,
+    WaitForHardmode,
+    WaitForMechanicalBoss,
+    WaitForPlantera,
+    WaitForGolem,
+    Complete,
+}
+
+internal readonly record struct AnglerOrder(int Fish, int Reward, int Stack = 1,
+    AnglerProgression Requirement = AnglerProgression.PreHardmode);
+
+internal readonly record struct AnglerOffer(AnglerQuestStatus Status, AnglerOrder Order = default);
+
+internal static class AnglerOrders
+{
+    private static readonly AnglerOrder[] PreHardmodeOrders =
+    [
+        new(ItemID.Bunnyfish, ItemID.FuzzyCarrot),
+        new(ItemID.DynamiteFish, ItemID.BombFish, 6),
+        new(ItemID.TundraTrout, ItemID.FlurryBoots),
+        new(ItemID.DemonicHellfish, ItemID.Lavafly, 5),
+        new(ItemID.Catfish, ItemID.FrogLeg),
+        new(ItemID.Clownfish, ItemID.GoldenFishingRod),
+    ];
+
+    private static readonly AnglerOrder[] HardmodeOrders =
+    [
+        new(ItemID.Pixiefish, ItemID.GreaterHealingPotion, 3),
+        new(ItemID.CapnTunabeard, ItemID.FinWings),
+        new(ItemID.Hungerfish, ItemID.HotlineFishingHook),
+        new(ItemID.Fishron, ItemID.ScalyTruffle, Requirement: AnglerProgression.MechanicalBoss),
+        new(ItemID.Mudfish, ItemID.ThornHook, Requirement: AnglerProgression.Plantera),
+        new(ItemID.AmanitaFungifin, ItemID.TruffleWorm, Requirement: AnglerProgression.Golem),
+    ];
+
+    internal static AnglerProgression CurrentProgression
+    {
+        get
+        {
+            if (!Main.hardMode)
+                return AnglerProgression.PreHardmode;
+
+            var progress = AnglerProgression.Hardmode;
+            if (NPC.downedMechBossAny || NPC.downedPlantBoss)
+                progress |= AnglerProgression.MechanicalBoss;
+            if (NPC.downedPlantBoss)
+                progress |= AnglerProgression.Plantera;
+            if (NPC.downedGolemBoss)
+                progress |= AnglerProgression.Golem;
+            return progress;
+        }
+    }
+
+    internal static AnglerOffer GetOffer(AnglerProgression progress, int preHardmodeCompleted, int hardmodeCompleted)
+    {
+        bool hardmode = progress.HasFlag(AnglerProgression.Hardmode);
+        AnglerOrder[] chapter = hardmode ? HardmodeOrders : PreHardmodeOrders;
+        int completed = hardmode ? hardmodeCompleted : preHardmodeCompleted;
+        if (completed >= chapter.Length)
+            return new(hardmode ? AnglerQuestStatus.Complete : AnglerQuestStatus.WaitForHardmode);
+
+        AnglerOrder order = chapter[completed];
+        if ((progress & order.Requirement) == order.Requirement)
+            return new(AnglerQuestStatus.Active, order);
+
+        return new(order.Requirement switch
+        {
+            AnglerProgression.MechanicalBoss => AnglerQuestStatus.WaitForMechanicalBoss,
+            AnglerProgression.Plantera => AnglerQuestStatus.WaitForPlantera,
+            AnglerProgression.Golem => AnglerQuestStatus.WaitForGolem,
+            _ => AnglerQuestStatus.None,
+        });
+    }
+}

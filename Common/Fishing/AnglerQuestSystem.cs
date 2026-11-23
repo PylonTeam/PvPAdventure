@@ -26,10 +26,11 @@ internal enum AnglerQuestNotice : byte
 {
     None,
     Delivered,
+    PreHardmodeChapterFinished,
 }
 
 internal readonly record struct AnglerQuestView(
-    int Revision, int Fish, int Completed, int HardmodeCompleted, AnglerQuestNotice Notice);
+    int Revision, int Fish, int Completed, int HardmodeCompleted, AnglerQuestStatus Status, AnglerQuestNotice Notice);
 
 internal sealed class AnglerQuestSystem : ModSystem
 {
@@ -38,9 +39,11 @@ internal sealed class AnglerQuestSystem : ModSystem
     private sealed class Quest
     {
         public int Revision;
-        public int Fish;
-        public int Completed;
+        public int PreHardmodeCompleted;
         public int HardmodeCompleted;
+        public bool InHardmode;
+        public AnglerOffer Offer;
+        public AnglerOrder CarryOver;
     }
 
     private const int RewardInventorySlots = 50;
@@ -48,14 +51,11 @@ internal sealed class AnglerQuestSystem : ModSystem
     private readonly Dictionary<string, Quest> quests = new(StringComparer.OrdinalIgnoreCase);
     private int nextRevision;
     private ulong nextRefreshTick;
+    private AnglerProgression lastProgression;
     private static AnglerQuestSystem Instance => ModContent.GetInstance<AnglerQuestSystem>();
 
     internal static bool IsPlaying => ModContent.GetInstance<GameManager>().CurrentPhase == GameManager.Phase.Playing;
     internal static AnglerQuestView LocalView { get; private set; }
-
-    public override void Load() => On_Main.AnglerQuestSwap += ResetDailyQuests;
-
-    public override void Unload() => On_Main.AnglerQuestSwap -= ResetDailyQuests;
 
     public override void ClearWorld()
     {
@@ -63,6 +63,7 @@ internal sealed class AnglerQuestSystem : ModSystem
         LocalView = default;
         nextRevision = 0;
         nextRefreshTick = 0;
+        lastProgression = default;
     }
 
     public override void PostUpdateEverything()
@@ -72,6 +73,17 @@ internal sealed class AnglerQuestSystem : ModSystem
             LocalView = default;
             nextRefreshTick = 0;
             return;
+        }
+
+        if (Main.netMode != NetmodeID.MultiplayerClient)
+        {
+            AnglerProgression progression = AnglerOrders.CurrentProgression;
+            if (lastProgression != progression)
+            {
+                lastProgression = progression;
+                foreach (Player player in Main.ActivePlayers)
+                    SendView(player, GetQuest(player));
+            }
         }
 
         if (Main.netMode == NetmodeID.Server || Main.gameMenu || !Main.LocalPlayer.active ||
@@ -86,8 +98,7 @@ internal sealed class AnglerQuestSystem : ModSystem
     internal static void BeginMatch()
     {
         EndMatch();
-        if (Main.netMode != NetmodeID.MultiplayerClient)
-            SetDailyQuest(AnglerFishing.NextQuest());
+        Instance.lastProgression = AnglerOrders.CurrentProgression;
     }
 
     internal static void EndMatch()
@@ -108,11 +119,11 @@ internal sealed class AnglerQuestSystem : ModSystem
             if (player.whoAmI != Main.myPlayer || LocalView.Revision == 0)
                 return false;
             fishType = LocalView.Fish;
-            return true;
+            return fishType > 0;
         }
 
-        fishType = Instance.GetQuest(player).Fish;
-        return true;
+        fishType = Instance.GetQuest(player).Offer.Order.Fish;
+        return fishType > 0;
     }
 
     internal static void Request(AnglerQuestAction action, int revision = 0, int argument = 0)
@@ -164,8 +175,17 @@ internal sealed class AnglerQuestSystem : ModSystem
             return;
 
         Quest quest = GetQuest(player);
-        int slot = player.FindItem(quest.Fish);
-        bool firstTurnInBeforeSync = revision == 0 && quest.Completed == 0;
+        AnglerOrder order = quest.Offer.Order;
+        int slot = order.Fish > 0 ? player.FindItem(order.Fish) : -1;
+        bool carryingEarlyOrder = slot < 0 && quest.InHardmode && quest.CarryOver.Fish > 0;
+        if (carryingEarlyOrder)
+        {
+            order = quest.CarryOver;
+            slot = player.FindItem(order.Fish);
+        }
+
+        bool firstTurnInBeforeSync = revision == 0 &&
+            quest.PreHardmodeCompleted == 0 && quest.HardmodeCompleted == 0;
         if ((revision != quest.Revision && !firstTurnInBeforeSync) || slot < 0)
         {
             SendView(player, quest, dialogueNpc: argument);
@@ -175,14 +195,20 @@ internal sealed class AnglerQuestSystem : ModSystem
         var changedSlots = new HashSet<int> { slot };
         if (--player.inventory[slot].stack == 0)
             player.inventory[slot].TurnToAir();
-        quest.Completed++;
-        if (Main.hardMode)
+        if (quest.InHardmode && !carryingEarlyOrder)
             quest.HardmodeCompleted++;
+        else
+            quest.PreHardmodeCompleted++;
+        if (carryingEarlyOrder)
+            quest.CarryOver = default;
         player.anglerQuestsFinished++;
 
-        GiveRewards(player, Main.npc[argument], quest, changedSlots);
-        DealQuest(quest);
-        SendView(player, quest, AnglerQuestNotice.Delivered, argument, changedSlots);
+        GiveReward(player, Main.npc[argument], order, changedSlots);
+        RefreshOffer(player, quest, delivered: true);
+        AnglerQuestNotice notice = quest.Offer.Status == AnglerQuestStatus.WaitForHardmode
+            ? AnglerQuestNotice.PreHardmodeChapterFinished
+            : AnglerQuestNotice.Delivered;
+        SendView(player, quest, notice, argument, changedSlots);
     }
 
     private Quest GetQuest(Player player)
@@ -190,37 +216,30 @@ internal sealed class AnglerQuestSystem : ModSystem
         string key = PlayerKey(player);
         if (!quests.TryGetValue(key, out Quest quest))
         {
-            quest = new Quest { Fish = AnglerFishing.DailyQuest, Revision = ++nextRevision };
+            quest = new Quest();
             quests.Add(key, quest);
         }
+        RefreshOffer(player, quest);
         return quest;
     }
 
-    private void ResetDailyQuests(On_Main.orig_AnglerQuestSwap orig)
+    private void RefreshOffer(Player player, Quest quest, bool delivered = false)
     {
-        if (Main.netMode == NetmodeID.MultiplayerClient || !IsPlaying)
+        AnglerProgression progression = AnglerOrders.CurrentProgression;
+        bool hardmode = progression.HasFlag(AnglerProgression.Hardmode);
+        if (hardmode && !quest.InHardmode && quest.Offer.Status == AnglerQuestStatus.Active &&
+            player.HasItem(quest.Offer.Order.Fish))
         {
-            orig();
-            return;
+            quest.CarryOver = quest.Offer.Order;
         }
+        quest.InHardmode = hardmode;
 
-        int dailyFish = AnglerFishing.NextQuest(AnglerFishing.DailyQuest);
-        SetDailyQuest(dailyFish);
-        foreach (Quest quest in quests.Values)
+        AnglerOffer next = AnglerOrders.GetOffer(progression, quest.PreHardmodeCompleted, quest.HardmodeCompleted);
+        if (quest.Revision == 0 || quest.Offer != next || delivered)
         {
-            quest.Fish = dailyFish;
+            quest.Offer = next;
             quest.Revision = ++nextRevision;
         }
-        foreach (Player player in Main.ActivePlayers)
-            SendView(player, GetQuest(player));
-    }
-
-    private static void SetDailyQuest(int fish)
-    {
-        Main.anglerQuest = Array.IndexOf(Main.anglerQuestItemNetIDs, fish);
-        Main.anglerWhoFinishedToday.Clear();
-        Main.anglerQuestFinished = false;
-        NetMessage.SendAnglerQuest(-1);
     }
 
     private static string PlayerKey(Player player)
@@ -241,51 +260,43 @@ internal sealed class AnglerQuestSystem : ModSystem
             Vector2.DistanceSquared(player.Center, angler.Center) <= AnglerChatRange * AnglerChatRange;
     }
 
-    private void DealQuest(Quest quest)
-    {
-        quest.Fish = AnglerFishing.NextQuest(quest.Fish);
-        quest.Revision = ++nextRevision;
-    }
-
-    private static void GiveRewards(Player player, NPC angler, Quest quest, HashSet<int> changedSlots)
+    private static void GiveReward(Player player, NPC angler, AnglerOrder order, HashSet<int> changedSlots)
     {
         var source = new EntitySource_Gift(angler);
-        foreach (AnglerReward reward in AnglerRewards.GetDeliveryRewards(quest.Completed, quest.HardmodeCompleted, Main.hardMode))
+        var item = new Item(order.Reward, order.Stack);
+        for (int slot = 0; slot < RewardInventorySlots && item.maxStack > 1 && item.stack > 0; slot++)
         {
-            var item = new Item(reward.ItemType, reward.Stack);
-            for (int slot = 0; slot < RewardInventorySlots && item.maxStack > 1 && item.stack > 0; slot++)
-            {
-                Item existing = player.inventory[slot];
-                if (existing.type == item.type && existing.stack < existing.maxStack &&
-                    ItemLoader.TryStackItems(existing, item, out int transferred) && transferred > 0)
-                    changedSlots.Add(slot);
-            }
+            Item existing = player.inventory[slot];
+            if (existing.type == item.type && existing.stack < existing.maxStack &&
+                ItemLoader.TryStackItems(existing, item, out int transferred) && transferred > 0)
+                changedSlots.Add(slot);
+        }
 
-            if (item.stack <= 0)
-                continue;
+        if (item.stack <= 0)
+            return;
 
-            int emptySlot = Array.FindIndex(player.inventory, 0, RewardInventorySlots, static existing => existing.IsAir);
-            if (emptySlot >= 0)
-            {
-                player.inventory[emptySlot] = item;
-                changedSlots.Add(emptySlot);
-                continue;
-            }
+        int emptySlot = Array.FindIndex(player.inventory, 0, RewardInventorySlots, static existing => existing.IsAir);
+        if (emptySlot >= 0)
+        {
+            player.inventory[emptySlot] = item;
+            changedSlots.Add(emptySlot);
+            return;
+        }
 
-            int drop = Item.NewItem(source, player.Hitbox, item.type, item.stack, noBroadcast: true, noGrabDelay: true);
-            if (Main.netMode == NetmodeID.Server && drop < Main.maxItems)
-            {
-                Main.item[drop].playerIndexTheItemIsReservedFor = player.whoAmI;
-                NetMessage.SendData(MessageID.SyncItem, number: drop, number2: 1f);
-                NetMessage.SendData(MessageID.ItemOwner, number: drop);
-            }
+        int drop = Item.NewItem(source, player.Hitbox, item.type, item.stack, noBroadcast: true, noGrabDelay: true);
+        if (Main.netMode == NetmodeID.Server && drop < Main.maxItems)
+        {
+            Main.item[drop].playerIndexTheItemIsReservedFor = player.whoAmI;
+            NetMessage.SendData(MessageID.SyncItem, number: drop, number2: 1f);
+            NetMessage.SendData(MessageID.ItemOwner, number: drop);
         }
     }
 
     private static void SendView(Player player, Quest quest, AnglerQuestNotice notice = AnglerQuestNotice.None,
         int dialogueNpc = -1, HashSet<int> changedSlots = null)
     {
-        var view = new AnglerQuestView(quest.Revision, quest.Fish, quest.Completed, quest.HardmodeCompleted, notice);
+        var view = new AnglerQuestView(quest.Revision, quest.Offer.Order.Fish,
+            quest.PreHardmodeCompleted + quest.HardmodeCompleted, quest.HardmodeCompleted, quest.Offer.Status, notice);
         if (Main.netMode == NetmodeID.SinglePlayer)
         {
             if (changedSlots?.Count > 0)
@@ -299,6 +310,7 @@ internal sealed class AnglerQuestSystem : ModSystem
         packet.Write(view.Fish);
         packet.Write(view.Completed);
         packet.Write(view.HardmodeCompleted);
+        packet.Write((byte)view.Status);
         packet.Write((byte)view.Notice);
         packet.Write((short)dialogueNpc);
         packet.Write((byte)(changedSlots?.Count ?? 0));
@@ -317,7 +329,7 @@ internal sealed class AnglerQuestSystem : ModSystem
     private static void ReadView(BinaryReader reader)
     {
         var view = new AnglerQuestView(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
-            (AnglerQuestNotice)reader.ReadByte());
+            (AnglerQuestStatus)reader.ReadByte(), (AnglerQuestNotice)reader.ReadByte());
         int dialogueNpc = reader.ReadInt16();
         int changedSlots = reader.ReadByte();
         for (int i = 0; i < changedSlots; i++)
@@ -336,7 +348,7 @@ internal sealed class AnglerQuestSystem : ModSystem
 
     private static void ApplyView(AnglerQuestView view, int dialogueNpc)
     {
-        if (view.Notice == AnglerQuestNotice.Delivered)
+        if (view.Notice != AnglerQuestNotice.None)
         {
             if (Main.netMode == NetmodeID.MultiplayerClient)
                 Main.LocalPlayer.anglerQuestsFinished++;
