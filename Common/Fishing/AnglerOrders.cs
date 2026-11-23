@@ -35,10 +35,10 @@ internal static class AnglerOrders
     private static readonly AnglerOrder[] PreHardmodeOrders =
     [
         new(ItemID.Bunnyfish, ItemID.FuzzyCarrot),
-        new(ItemID.DynamiteFish, ItemID.BombFish, 6),
+        new(ItemID.Spiderfish, ItemID.FishHook),
         new(ItemID.TundraTrout, ItemID.FlurryBoots),
-        new(ItemID.DemonicHellfish, ItemID.Lavafly, 5),
         new(ItemID.Catfish, ItemID.FrogLeg),
+        new(ItemID.DemonicHellfish, ItemID.Lavafly, 5),
         new(ItemID.Clownfish, ItemID.GoldenFishingRod),
     ];
 
