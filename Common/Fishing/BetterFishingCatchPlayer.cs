@@ -64,7 +64,6 @@ public static class FishingCatchRules
         new(ItemID.ArmoredCavefish, 24),
         new(ItemID.Prismite, 20),
         new(ItemID.VariegatedLardfish, 18),
-        new(ItemID.SpecularFish, 16),
         new(ItemID.DoubleCod, 10),
         new(ItemID.Ebonkoi, 6),
         new(ItemID.Hemopiranha, 6),
@@ -138,7 +137,9 @@ public static class FishingCatchRules
     }
 
     internal static bool IsFillerCatch(int itemType) => itemType is
-        ItemID.OldShoe or ItemID.TinCan or ItemID.FishingSeaweed or ItemID.Bass;
+        ItemID.OldShoe or ItemID.TinCan or ItemID.FishingSeaweed or ItemID.Bass or
+        ItemID.Trout or ItemID.AtlanticCod or ItemID.Shrimp or ItemID.SpecularFish or
+        ItemID.Stinkfish or ItemID.PrincessFish;
 
     private static int RollGoodCatch(FishingCatchContext context)
     {
