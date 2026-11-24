@@ -1,4 +1,3 @@
-using ErkySSC.Common.RegionProtection.VFX;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -151,7 +150,7 @@ public sealed class RacePeriodVisuals : ModPlayer
         Color team = Player.team >= 0 && Player.team < Main.teamColor.Length
             ? Main.teamColor[Player.team] : Color.White;
         Color lighting = Lighting.GetColor(Player.Center.ToTileCoordinates());
-        float breath = MathHelper.SmoothStep(0f, 1f, SpawnRegionGlow.GetPulseWave(Player));
+        float breath = RacePeriodPulse.GetWave(Player);
         wake.Draw(ref drawInfo, start, Main.GameUpdateCount, team, settings, lighting, breath);
     }
 
@@ -177,6 +176,8 @@ public sealed class RacePeriodVisuals : ModPlayer
 /// </summary>
 internal sealed class RacePeriodMountLayer : PlayerDrawLayer
 {
+    private const int HorseHoofInset = 2;
+
     // Do not use AfterParent(MountBack): RacePeriod deliberately hides MountBack, and tModLoader
     // propagates a parent's hidden state to every BeforeParent/AfterParent child. Between gives the
     // replacement animal an independent slot while keeping it near the normal mount position.
@@ -190,8 +191,7 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
     protected override void Draw(ref PlayerDrawSet drawInfo)
     {
         int start = drawInfo.DrawDataCache.Count;
-        RacePeriodSpriteSheet? customSheet = DrawAnimal(ref drawInfo);
-        RacePeriodAnimalLayout.Apply(ref drawInfo, start, customSheet);
+        DrawAnimal(ref drawInfo);
         for (int i = start; i < drawInfo.DrawDataCache.Count; i++)
         {
             DrawData part = drawInfo.DrawDataCache[i];
@@ -199,37 +199,43 @@ internal sealed class RacePeriodMountLayer : PlayerDrawLayer
             drawInfo.DrawDataCache[i] = part;
         }
 
-        if (drawInfo.hideEntirePlayer && drawInfo.drawPlayer.mount.Type == MountID.Wolf && drawInfo.DrawDataCache.Count > start)
-            ModContent.GetInstance<SpawnRegionGlow>().AllowGlowForHiddenRider(ref drawInfo);
-
         if (drawInfo.drawPlayer.TryGetModPlayer(out RacePeriodVisuals visuals))
             visuals.DrawTrail(ref drawInfo, start);
+
+        // Send only the finished animal silhouette to the shared glow pass.
+        RacePeriodGhostShader.AppendGlow(ref drawInfo, start);
     }
 
-    private static RacePeriodSpriteSheet? DrawAnimal(ref PlayerDrawSet drawInfo)
+    private static void DrawAnimal(ref PlayerDrawSet drawInfo)
     {
         if (drawInfo.drawPlayer.TryGetModPlayer(out RacePeriodVisuals visuals) &&
             visuals.TryGetCustomDraw(out RacePeriodSpriteSheet spriteSheet, out int frame))
         {
-            // A malformed or unavailable body falls through to the physical mount's vanilla art.
-            // An optional malformed foreground is simply skipped so it cannot hide the animal.
-            if (DrawCustomSheet(ref drawInfo, spriteSheet, spriteSheet.BodyTexture.Value, frame))
-            {
-                if (spriteSheet.ForegroundTexture is { } foreground)
-                    DrawCustomSheet(ref drawInfo, spriteSheet, foreground.Value, frame);
-
-                return spriteSheet;
-            }
+            Texture2D body = RacePeriodAnimalTextures.GetBody(spriteSheet.BodyTexture.Value, spriteSheet.ForegroundTexture?.Value);
+            if (DrawCustomSheet(ref drawInfo, spriteSheet, body, frame))
+                return;
         }
 
-        Mount mount = drawInfo.drawPlayer.mount;
+        Player player = drawInfo.drawPlayer;
+        Mount mount = player.mount;
+        int start = drawInfo.DrawDataCache.Count;
+
+        // Mount.Draw anchors at half the rider's height. Reconstruct the native mounted center
+        // from the same feet after RacePeriod has removed the height boost from collision.
+        int mountedHeight = Player.defaultHeight + mount.HeightBoost;
+        int currentFeetOffset = player.height - player.height / 2;
+        int mountedFeetOffset = mountedHeight - mountedHeight / 2;
+        // The native horse sheets inset resting hooves two pixels into the floor.
+        int hoofInset = mount.Type is MountID.PaintedHorse or MountID.MajesticHorse or MountID.DarkHorse ? HorseHoofInset : 0;
+        Vector2 mountPosition = drawInfo.Position - new Vector2(0f, mountedFeetOffset - currentFeetOffset + hoofInset);
         for (int drawType = 0; drawType < 4; drawType++)
         {
-            mount.Draw(drawInfo.DrawDataCache, drawType, drawInfo.drawPlayer, drawInfo.Position,
+            mount.Draw(drawInfo.DrawDataCache, drawType, player, mountPosition,
                 drawInfo.colorMount, drawInfo.playerEffect, drawInfo.shadow);
         }
 
-        return null;
+        if (mount.Type == MountID.Wolf)
+            RacePeriodAnimalTextures.CombineWolfLayers(drawInfo.DrawDataCache, start);
     }
 
     private static bool DrawCustomSheet(

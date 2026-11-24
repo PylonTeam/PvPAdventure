@@ -69,12 +69,7 @@ public class PvPFrameworkIntegration : ModSystem
             DrawOffset: sheet.DrawOffset.ToVector2(),
             FrameCropBottom: sheet.FrameCropBottom,
             Scale: sheet.Scale,
-            AnchorPlayerHeight: sheet.AnchorPlayerHeight)
-        {
-            ArtLayout = sheet.BodyTexturePath == SpiritAnimalCatalog.VelociraptorBodyTexture
-                ? new RacePeriodArtLayout(0.8f, 2f)
-                : null
-        };
+            AnchorPlayerHeight: sheet.AnchorPlayerHeight);
     }
 
     private static RacePeriodAnimationRange ConvertAnimation(SpiritAnimalAnimationRange animation) =>
