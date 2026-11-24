@@ -211,6 +211,7 @@ public sealed class PortalNPC : ModNPC
 
     #region Hit / damage from melee & projectiles
     public override bool CanHitPlayer(Player target, ref int cooldownSlot) => false;
+    public override bool CanBeHitByNPC(NPC attacker) => false;
     private int _lastDamagePlayer = -1; // the whoAmI of the last player that damaged this portal
     private const int MeleeHitCooldown = 20;
     private const int ProjectileHitCooldown = 10;
@@ -240,7 +241,7 @@ public sealed class PortalNPC : ModNPC
         if (item == null || item.IsAir || item.damage <= 0 || item.noMelee)
             return false;
 
-        if (player == null || player.whoAmI < 0 || player.whoAmI >= Main.maxPlayers)
+        if (player?.active != true || player.whoAmI < 0 || player.whoAmI >= Main.maxPlayers)
             return false;
 
         if (IsFriendlyPlayer(player))
@@ -251,7 +252,7 @@ public sealed class PortalNPC : ModNPC
 
     public override bool? CanBeHitByProjectile(Projectile projectile)
     {
-        if (projectile == null || !projectile.active || !projectile.friendly || projectile.hostile || projectile.damage <= 0)
+        if (projectile == null || !projectile.active || !projectile.friendly || projectile.hostile || projectile.npcProj || projectile.damage <= 0)
             return false;
 
         if (projectile.type is ProjectileID.Bee or ProjectileID.GiantBee)
@@ -260,9 +261,7 @@ public sealed class PortalNPC : ModNPC
         if (projectile.owner < 0 || projectile.owner >= Main.maxPlayers)
             return false;
 
-        Player owner = Main.player[projectile.owner];
-
-        if (IsFriendlyPlayer(owner))
+        if (Main.player[projectile.owner] is not { active: true } owner || IsFriendlyPlayer(owner))
             return false;
 
         return NPC.immune[projectile.owner] <= 0;
