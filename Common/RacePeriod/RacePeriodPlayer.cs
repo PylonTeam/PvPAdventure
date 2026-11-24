@@ -146,6 +146,11 @@ public sealed class RacePeriodPlayer : ModPlayer
 
     public override void PreUpdate()
     {
+        // Vanilla resizes the mounted hitbox before this hook and can send its
+        // coordinates before PostUpdateRunSpeeds. Keep both peers on the race hitbox.
+        if (IsRacing)
+            ResetMountHitbox();
+
         isGrounded = Player.velocity.Y == 0f;
         bool jumpJustPressed = Player.controlJump && !wasJumpPressed;
 
