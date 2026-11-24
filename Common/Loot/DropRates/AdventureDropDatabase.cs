@@ -22,6 +22,16 @@ public static class AdventureDropDatabase
         public bool CanDrop(DropAttemptInfo info) => !Main.hardMode;
         public bool CanShowItemDropInUI() => true;
         public string GetConditionDescription() => "Drops pre-hardmode";
+    
+    }
+    public class DownedAnyMechBoss : IItemDropRuleCondition
+    {
+        public bool CanDrop(DropAttemptInfo info) =>
+            NPC.downedMechBoss1 || NPC.downedMechBoss2 || NPC.downedMechBoss3;
+
+        public bool CanShowItemDropInUI() => true;
+
+        public string GetConditionDescription() => "Drops after defeating any mechanical boss";
     }
 
     private static void ModifyDropRate(IItemDropRule rule, int type, int numerator, int denominator)
@@ -59,6 +69,9 @@ public static class AdventureDropDatabase
 
         foreach (var drop in drops)
             ModifyDropRate(drop, ItemID.MagnetSphere, 1, 20);
+
+        foreach (var drop in drops)
+            ModifyDropRate(drop, ItemID.Yelets, 1, 20);
 
         switch (npc.type)
         {
@@ -273,10 +286,12 @@ public static class AdventureDropDatabase
                 break;
 
             case NPCID.AngryTrapper:
-                foreach (var drop in drops)
-                {
-                    ModifyDropRate(drop, ItemID.Uzi, 1, 15);
-                }
+                npcLoot.RemoveWhere(rule => RuleDropsItem(rule, ItemID.Uzi));
+                npcLoot.Add(ItemDropRule.ByCondition(
+                    new DownedAnyMechBoss(),
+                    ItemID.Uzi,
+                    chanceDenominator: 10,
+                    chanceNumerator: 1));
                 npcLoot.Add(ItemDropRule.Common(ItemID.Vine, 1, 1, 1));
                 break;
             case NPCID.DesertDjinn:
