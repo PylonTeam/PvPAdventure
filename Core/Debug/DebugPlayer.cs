@@ -12,7 +12,6 @@ internal sealed class DebugPlayer : ModPlayer
         "Shift+Numpad1: Toggle stats\n" +
         "Shift+Numpad2: Start match immediately\n" +
         "Shift+Numpad3: End match / cancel countdown\n" +
-        "Shift+Numpad4: Add bounty shards\n" +
         "F5: Rebuild debug UI";
 
     public override void OnEnterWorld()

@@ -1,10 +1,8 @@
 using Microsoft.Xna.Framework.Input;
-using PvPAdventure.Common.Bounties;
 using PvPAdventure.Common.Statistics;
 using PvPAdventure.Content.Portals;
 using GameKeybinds = PylonMatch.Core.Input.Keybinds;
 using System.Collections.Generic;
-using Terraria;
 using Terraria.GameInput;
 using Terraria.ModLoader;
 
@@ -13,7 +11,6 @@ namespace PvPAdventure.Core.Input;
 [Autoload(Side = ModSide.Client)]
 public class Keybinds : ModSystem
 {
-    public ModKeybind BountyShop { get; private set; }
     public ModKeybind UsePortalCreator { get; private set; }
 
     #region Portal creator label
@@ -36,7 +33,6 @@ public class Keybinds : ModSystem
 
     public override void Load()
     {
-        BountyShop = KeybindLoader.RegisterKeybind(Mod, "BountyShop", Keys.B);
         UsePortalCreator = KeybindLoader.RegisterKeybind(Mod, "UsePortalCreator", Keys.P);
     }
 }
@@ -53,17 +49,6 @@ internal class KeybindsPlayer : ModPlayer
             ModContent.GetInstance<PointsManager>().BossCompletion.Active = true;
         else if (scoreboardKey?.JustReleased == true)
             ModContent.GetInstance<PointsManager>().BossCompletion.Active = false;
-
-        // Bounty Shop
-        if (keybinds.BountyShop.JustPressed)
-        {
-            var bountyShop = ModContent.GetInstance<BountyManager>().UiBountyShop;
-
-            if (Main.InGameUI.CurrentState == bountyShop)
-                Main.InGameUI.SetState(null);
-            else
-                Main.InGameUI.SetState(bountyShop);
-        }
 
         // UsePortalCreator keybind
         if (keybinds.UsePortalCreator.JustPressed)

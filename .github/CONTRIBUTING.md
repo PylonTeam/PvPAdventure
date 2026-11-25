@@ -36,7 +36,6 @@ If you're modifying/expanding existing functionality, here's a quick overview of
 
 #### `Common` (gameplay features)
 - `Common.AdminTools` — game timer, points/team assigner, integration with DragonLens.
-- `Common.Bounties` — bounty shop.
 - `Common.Combat` — PvP/PvE changes, i-frames, hit/kill markers, ghost heal/LoS adjustments, etc.
 - `Common.Combat.TeamBoss` — bosses only take damage from the team with the most damage (set in BossBalanceConfig)
 - `Common.Game` — match state, countdown, time remaining.

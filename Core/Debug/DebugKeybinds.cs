@@ -1,14 +1,12 @@
 #if DEBUG
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
-using PvPAdventure.Common.Bounties;
 using PvPAdventure.Common.Game;
 using PvPAdventure.Common.Travel.UI;
 using PylonMatch.Common.Game;
 using PvPAdventure.Core.Utilities;
 using PvPAdventure.UI;
 using Terraria;
-using Terraria.Enums;
 using Terraria.ID;
 using Terraria.ModLoader;
 
@@ -20,7 +18,6 @@ namespace PvPAdventure.Core.Debug;
 //   Shift+NumPad1  toggle debug stats
 //   Shift+NumPad2  start a match
 //   Shift+NumPad3  end a match or cancel its countdown
-//   Shift+NumPad4  grant bounty shards
 //   F5             rebuild debug UI (travel UI + draggable panels)
 //
 // The race period toggle lives in Adventure's DebugRacePeriodKeybinds.
@@ -29,13 +26,11 @@ internal sealed class DebugKeybinds : ModSystem
 {
     internal static readonly Color MessageColor = new(255, 190, 70);
 
-    private const int BountyShardsPerPress = 500;
     private const int StartGameCountdownSeconds = 0;
 
     private bool numPad1Released = true;
     private bool numPad2Released = true;
     private bool numPad3Released = true;
-    private bool numPad4Released = true;
     private bool f5Released = true;
 
     public override void OnWorldLoad()
@@ -43,7 +38,6 @@ internal sealed class DebugKeybinds : ModSystem
         numPad1Released = true;
         numPad2Released = true;
         numPad3Released = true;
-        numPad4Released = true;
         f5Released = true;
     }
 
@@ -61,9 +55,6 @@ internal sealed class DebugKeybinds : ModSystem
 
         if (PressedWithShift(Keys.NumPad3, ref numPad3Released))
             EndGame();
-
-        if (PressedWithShift(Keys.NumPad4, ref numPad4Released))
-            AddBountyShards();
 
         if (JustPressed(Keys.F5, ref f5Released))
             RebuildDebugUI();
@@ -108,26 +99,6 @@ internal sealed class DebugKeybinds : ModSystem
     {
         ModContent.GetInstance<TravelUISystem>()?.travelUIState?.ForceRebuildNextUpdate();
         UIDraggablePanel.RequestDebugRebuild();
-    }
-
-    private static void AddBountyShards()
-    {
-        Team team = (Team)Main.LocalPlayer.team;
-
-        if (team == Team.None)
-        {
-            Log.Chat("Shift+NumPad4: you are Team.None. Join a team first.");
-            return;
-        }
-
-        if (!ModContent.GetInstance<BountyManager>()
-            .TryAddBountyShards(team, BountyShardsPerPress, out int totalShards))
-        {
-            Log.Chat("Shift+NumPad4: no eligible bounties (check conditions/config).");
-            return;
-        }
-
-        Log.Chat($"+{BountyShardsPerPress} bounty shards to {team}. Shard count now: {totalShards}");
     }
 
     /// <summary>Edge-detects a key. Always consumes the press, so modifier checks layer on top.</summary>

@@ -1,6 +1,5 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using PvPAdventure.Common.Bounties;
 using PvPAdventure.Common.Game.StatTrackers;
 using BossDisplaySettings = PvPFramework.Common.NPCs.BossDisplaySettings;
 using PvPAdventure.Common.NPCs;
@@ -292,7 +291,6 @@ public class PointsManager : ModSystem
             return;
 
         var victimTeamPoints = _points[(Team)victim.team];
-        var killerTeamPints = _points[killerTeam];
 
         // Find the lowest denomination of points we can take (can't take more than the other team has!)
         var pointsToTrade = Math.Min(victimTeamPoints, config.Points.PlayerKill);
@@ -312,10 +310,6 @@ public class PointsManager : ModSystem
             if (Main.dedServ)
                 NetMessage.SendData(MessageID.WorldData);
         }
-
-        if (config.Bounties.AwardBountyEveryKill || victimTeamPoints > killerTeamPints)
-            ModContent.GetInstance<BountyManager>().Award(killer, victim);
-
     }
 
     public void SetTeamPoints(Team team, int points)

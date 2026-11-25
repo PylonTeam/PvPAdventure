@@ -22,7 +22,6 @@ Mods: {
 		}
 
 		Keybinds: {
-			BountyShop.DisplayName: Bounty Shop
 			Dash.DisplayName: Dash
 			DLEndGameTool.DisplayName: DL End Game Tool
 			DLEndGameToolRightClick.DisplayName: DL End Game Tool Right Click
@@ -459,11 +458,6 @@ Mods: {
 					Tooltip: ""
 				}
 
-				Bounties: {
-					Label: Bounties
-					Tooltip: ""
-				}
-
 				WeaponBalance: {
 					Label: Weapon Balance
 					Tooltip: ""
@@ -606,85 +600,6 @@ Mods: {
 
 				WallOfFleshDropsDemonHeart: {
 					Label: Wall Of Flesh Drops Demon Heart
-					Tooltip: ""
-				}
-			}
-
-			Bounty: {
-				Tooltip: ""
-
-				Items: {
-					Label: Items
-					Tooltip: ""
-				}
-
-				Conditions: {
-					Label: Conditions
-					Tooltip: ""
-				}
-
-				CollectedAllMechanicalBossSouls: All Mechanical Bosses Defeated
-			}
-
-			Condition: {
-				Tooltip: ""
-
-				WorldProgression: {
-					Label: World Progression
-					Tooltip: ""
-				}
-
-				SkeletronPrimeDefeated: {
-					Label: Skeletron Prime Defeated
-					Tooltip: ""
-				}
-
-				TwinsDefeated: {
-					Label: Twins Defeated
-					Tooltip: ""
-				}
-
-				DestroyerDefeated: {
-					Label: Destroyer Defeated
-					Tooltip: ""
-				}
-
-				PlanteraDefeated: {
-					Label: Plantera Defeated
-					Tooltip: ""
-				}
-
-				GolemDefeated: {
-					Label: Golem Defeated
-					Tooltip: ""
-				}
-
-				SkeletronDefeated: {
-					Label: Skeletron Defeated
-					Tooltip: ""
-				}
-
-				CollectedAllMechanicalBossSouls: {
-					Label: All Mechanical Bosses Defeated
-					Tooltip: Require The Destroyer, The Twins, and Skeletron Prime to be defeated
-				}
-			}
-
-			WorldProgressionState: {
-				Tooltip: ""
-
-				Any: {
-					Label: Any
-					Tooltip: ""
-				}
-
-				PreHardmode: {
-					Label: Pre Hardmode
-					Tooltip: ""
-				}
-
-				Hardmode: {
-					Label: Hardmode
 					Tooltip: ""
 				}
 			}
@@ -1090,20 +1005,6 @@ Mods: {
 				}
 			}
 
-			BountiesConfig: {
-				Tooltip: ""
-
-				ClaimableItems: {
-					Label: Claimable Items
-					Tooltip: ""
-				}
-
-				AwardBountyEveryKill: {
-					Label: Award Bounty Every Kill
-					Tooltip: ""
-				}
-			}
-
 			ShakingChestConfig: {
 				Tooltip: Shaking chest settings
 
@@ -1202,25 +1103,6 @@ Mods: {
 				TeleportCooldownSeconds: {
 					Label: Teleport Cooldown Seconds
 					Tooltip: The time after a teleport has been completed before a new one can be tried again
-				}
-			}
-
-			ConfigItem: {
-				Tooltip: ""
-
-				Item: {
-					Label: Item
-					Tooltip: ""
-				}
-
-				Prefix: {
-					Label: Prefix
-					Tooltip: ""
-				}
-
-				Stack: {
-					Label: Stack
-					Tooltip: ""
 				}
 			}
 

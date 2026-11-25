@@ -51,7 +51,6 @@ public static class Ass
 
     // Scoreboard
     public static Asset<Texture2D> IconPointsSetter;
-    public static Asset<Texture2D> Shards;
 
     // Flag
     public static bool Initialized { get; set; }

@@ -21,10 +21,6 @@ public sealed class ServerConfig : ModConfig
     [Expand(false, false)]
     public PointsConfig Points = new();
 
-    [BackgroundColor(150, 104, 38)]
-    [Expand(false, false)]
-    public BountiesConfig Bounties = new();
-
     [Header("Gameplay")]
     [ConfigIcon(ItemID.GoldChest, placement: ConfigIconPlacement.Inside)]
     [BackgroundColor(205, 110, 60)]
@@ -81,8 +77,6 @@ public sealed class ServerConfig : ModConfig
     {
         Points ??= new();
         Points.Npc ??= ServerConfigDefaults.CreateNpcPoints();
-        Bounties ??= new();
-        Bounties.ClaimableItems ??= ServerConfigDefaults.CreateClaimableBounties();
         ShakingChest ??= new();
         ShakingChest.ShopItems ??= ServerConfigDefaults.CreateShopItems();
         TravelSystem ??= new();
@@ -174,21 +168,6 @@ public sealed class ServerConfig : ModConfig
 
         [DefaultValue(0)]
         public int PortalKill;
-    }
-
-    public sealed class BountiesConfig
-    {
-        [Expand(false, false)]
-        public List<Bounty> ClaimableItems = ServerConfigDefaults.CreateClaimableBounties();
-
-        [DefaultValue(ServerConfigDefaults.AwardBountyEveryKill)]
-        public bool AwardBountyEveryKill = ServerConfigDefaults.AwardBountyEveryKill;
-
-        public sealed class Bounty
-        {
-            public List<ConfigItem> Items = [];
-            public Condition Conditions = new();
-        }
     }
 
     public sealed class RacePeriodConfig
@@ -298,37 +277,5 @@ public sealed class ServerConfig : ModConfig
     {
         [Range(0, 1000)]
         public int Value;
-    }
-
-    public sealed class ConfigItem
-    {
-        public ItemDefinition Item = new();
-        public PrefixDefinition Prefix = new();
-        private int stack = 1;
-
-        public int Stack
-        {
-            get => stack;
-            set => stack = Math.Clamp(value, 1, new Item(Item.Type, 1, Prefix.Type).maxStack);
-        }
-    }
-
-    public sealed class Condition
-    {
-        public enum WorldProgressionState
-        {
-            Any,
-            PreHardmode,
-            Hardmode
-        }
-
-        public WorldProgressionState WorldProgression;
-        public bool SkeletronPrimeDefeated;
-        public bool TwinsDefeated;
-        public bool DestroyerDefeated;
-        public bool PlanteraDefeated;
-        public bool GolemDefeated;
-        public bool SkeletronDefeated;
-        public bool CollectedAllMechanicalBossSouls;
     }
 }

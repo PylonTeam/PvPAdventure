@@ -12,7 +12,6 @@ internal static class ServerConfigDefaults
     internal const int PlayerKillPoints = 1;
     internal const int TeamStartingPoints = 12;
     internal const int StartingCoins = 10;
-    internal const bool AwardBountyEveryKill = true;
 
     internal const bool IsRandomTeleportEnabled = false;
     internal const int TravelPortalCreationTimePreHardmodeSeconds = 10;
@@ -109,60 +108,11 @@ internal static class ServerConfigDefaults
         [Npc("Terraria/Plantera")] = new() { First = 3, Additional = 3, Repeatable = true },
     };
 
-    internal static List<ServerConfig.BountiesConfig.Bounty> CreateClaimableBounties() =>
-    [
-        new()
-        {
-            Items = [ConfigItem("Terraria/GuideVoodooDoll")],
-            Conditions = new()
-            {
-                WorldProgression = ServerConfig.Condition.WorldProgressionState.Hardmode,
-                SkeletronPrimeDefeated = true,
-                TwinsDefeated = true,
-                DestroyerDefeated = true,
-                PlanteraDefeated = true,
-            }
-        },
-        new()
-        {
-            Items =
-            [
-                ConfigItem("Terraria/VileMushroom"),
-                ConfigItem("Terraria/Lens", 2),
-                ConfigItem("Terraria/Bone", 10),
-                ConfigItem("Terraria/IronBar", 5),
-            ],
-            Conditions = new()
-            {
-                WorldProgression = ServerConfig.Condition.WorldProgressionState.Hardmode,
-                SkeletronPrimeDefeated = true,
-                TwinsDefeated = true,
-                DestroyerDefeated = true,
-            }
-        },
-        new()
-        {
-            Items = [ConfigItem("Terraria/SoulofLight", 2)],
-            Conditions = new() { WorldProgression = ServerConfig.Condition.WorldProgressionState.Hardmode }
-        },
-        new()
-        {
-            Items = [ConfigItem("Terraria/SoulofNight", 2)],
-            Conditions = new() { WorldProgression = ServerConfig.Condition.WorldProgressionState.Hardmode }
-        },
-    ];
-
     internal static Dictionary<int, ServerConfig.InvasionSizeValue> CreateInvasionSizes() => new()
     {
         [InvasionID.GoblinArmy] = new() { Value = 400 },
         [InvasionID.PirateInvasion] = new() { Value = 150 },
         [InvasionID.MartianMadness] = new() { Value = 500 },
-    };
-
-    private static ServerConfig.ConfigItem ConfigItem(string fullName, int stack = 1) => new()
-    {
-        Item = ParseItem(fullName),
-        Stack = stack
     };
 
     private static ServerConfig.ShopItem ShopItem(int type, int price) => new()

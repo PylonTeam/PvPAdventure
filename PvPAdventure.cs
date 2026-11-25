@@ -23,10 +23,6 @@ public class PvPAdventure : Mod
 
         switch (id)
         {
-            case AdventurePacketIdentifier.BountyTransaction:
-                Common.Bounties.BountyNetHandler.HandlePacket(reader, whoAmI);
-                break;
-
             case AdventurePacketIdentifier.TeamBed:
                 Common.Travel.Beds.TeamBedNetHandler.HandlePacket(reader, whoAmI);
                 break;
