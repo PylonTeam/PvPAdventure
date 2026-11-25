@@ -197,7 +197,7 @@ internal sealed class TeamBedSystem : ModSystem
             return;
 
         Vector2 pos = new(origin.X * 16f + 8f, origin.Y * 16f + 8f);
-        ModContent.GetInstance<PointsManager>().AwardPointsToTeam(team, bedPoints, pos, "[c/F58522:Bed]");
+        ModContent.GetInstance<PointsManager>().AwardPointsToTeam(team, bedPoints, pos);
     }
 
     private void ClearIfOwner(Point origin, int playerId)

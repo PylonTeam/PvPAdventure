@@ -197,7 +197,7 @@ public sealed class PortalNPC : ModNPC
                 int portalPoints = cfg.Points.PortalKill;
                 if (portalPoints != 0)
                 {
-                    ModContent.GetInstance<PointsManager>().AwardPointsToTeam((Team)last.team, portalPoints, NPC.Center, "[c/F58522:Portal]");
+                    ModContent.GetInstance<PointsManager>().AwardPointsToTeam((Team)last.team, portalPoints, NPC.Center);
                 }
             }
         }

@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Terraria;
-using Terraria.Chat;
 using Terraria.Enums;
 using Terraria.GameContent;
 using Terraria.ID;
@@ -62,12 +61,12 @@ public class PointsManager : ModSystem
         }
     }
 
-    public void AwardPointsToTeam(Team team, int points, Vector2 at, string defeated = null)
+    public void AwardPointsToTeam(Team team, int points, Vector2 at)
     {
         if (team == Team.None || points == 0) return;
 
         _points[team] += points;
-        VisualizePointChange(points, team, at, defeated);
+        ShowPointCombatText(points, team, at);
 
         if (Main.dedServ)
             NetMessage.SendData(MessageID.WorldData);
@@ -199,30 +198,14 @@ public class PointsManager : ModSystem
         }
     }
 
-    private void VisualizePointChange(int change, Team team, Vector2 at, string defeated = null)
+    private static void ShowPointCombatText(int change, Team team, Vector2 at)
     {
-        var firstPersonMessage = NetworkText.FromLiteral(FormatPointsVisually(change));
-        NetworkText thirdPersonMessage = null;
-
-        if (change > 0 && defeated != null)
-            thirdPersonMessage =
-                NetworkText.FromLiteral(
-                    $"{team} Team awarded +{change} point{(change == 1 ? "" : "s")} for defeating {defeated}!");
-
         NetMessage.SendData(MessageID.CombatTextString,
-            text: firstPersonMessage,
+            text: NetworkText.FromLiteral(FormatPointsVisually(change)),
             number: (int)Main.teamColor[(int)team].PackedValue,
             number2: at.X,
             number3: at.Y
         );
-
-        foreach (var player in Main.ActivePlayers)
-        {
-            if ((Team)player.team == team)
-                ChatHelper.SendChatMessageToClient(firstPersonMessage, Main.teamColor[(int)team], player.whoAmI);
-            else if (thirdPersonMessage != null)
-                ChatHelper.SendChatMessageToClient(thirdPersonMessage, Main.teamColor[(int)team], player.whoAmI);
-        }
     }
 
     public void AwardNpcKillToTeam(Team team, NPC npc)
@@ -262,20 +245,13 @@ public class PointsManager : ModSystem
             _downedNpcs[team].Add(NPCID.EaterofWorldsTail);
         }
 
-        string fullName;
-
         if (npc.type == NPCID.Retinazer || npc.type == NPCID.Spazmatism)
         {
             _downedNpcs[team].Add(NPCID.Spazmatism);
             _downedNpcs[team].Add(NPCID.Retinazer);
-            fullName = "The Twins";
-        }
-        else
-        {
-            fullName = npc.FullName;
         }
 
-        VisualizePointChange(pointsToAward, team, npc.position, $"[c/F58522:{fullName}]");
+        ShowPointCombatText(pointsToAward, team, npc.position);
 
         if (Main.dedServ)
             NetMessage.SendData(MessageID.WorldData);
@@ -303,9 +279,8 @@ public class PointsManager : ModSystem
             MatchStatsPlayer.RecordServerStat(killer, MatchStatKey.PointKills);
             MatchStatsPlayer.RecordServerStat(victim, MatchStatKey.PointDeaths);
 
-            VisualizePointChange(pointsToTrade, (Team)killer.team, killer.position,
-                $"[c/{Main.teamColor[victim.team].Hex3()}:{victim.name}]");
-            VisualizePointChange(-pointsToTrade, (Team)victim.team, victim.position);
+            ShowPointCombatText(pointsToTrade, killerTeam, killer.position);
+            ShowPointCombatText(-pointsToTrade, (Team)victim.team, victim.position);
 
             if (Main.dedServ)
                 NetMessage.SendData(MessageID.WorldData);
