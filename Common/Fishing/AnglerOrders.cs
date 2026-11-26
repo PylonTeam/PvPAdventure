@@ -23,6 +23,7 @@ internal enum AnglerQuestStatus : byte
     WaitForPlantera,
     WaitForGolem,
     Complete,
+    Disabled,
 }
 
 internal readonly record struct AnglerOrder(int Fish, int Reward, int Stack = 1,
@@ -32,6 +33,8 @@ internal readonly record struct AnglerOffer(AnglerQuestStatus Status, AnglerOrde
 
 internal static class AnglerOrders
 {
+    internal const int ChapterLength = 6;
+
     private static readonly AnglerOrder[] PreHardmodeOrders =
     [
         new(ItemID.Bunnyfish, ItemID.FuzzyCarrot),
@@ -52,7 +55,13 @@ internal static class AnglerOrders
         new(ItemID.AmanitaFungifin, ItemID.TruffleWorm, Requirement: AnglerProgression.Golem),
     ];
 
-    internal static bool IsHardmodeRepeat(int hardmodeCompleted) => hardmodeCompleted >= HardmodeOrders.Length;
+    internal static AnglerOrder GetDefaultPreHardmode(int index) => PreHardmodeOrders[index];
+
+    internal static AnglerOrder GetDefaultHardmode(int index) => HardmodeOrders[index];
+
+    internal static int GetDefaultMilestone(int index) => GetFishingGearReward(index + 1);
+
+    internal static bool IsHardmodeRepeat(int hardmodeCompleted) => hardmodeCompleted >= ChapterLength;
 
     internal static int GetFishingGearReward(int completedDeliveries) => completedDeliveries switch
     {
@@ -90,7 +99,6 @@ internal static class AnglerOrders
         int completed = hardmode ? hardmodeCompleted : preHardmodeCompleted;
         if (!hardmode && completed >= chapter.Length)
             return new(AnglerQuestStatus.WaitForHardmode);
-
         AnglerOrder order = chapter[Math.Min(completed, chapter.Length - 1)];
         if ((progress & order.Requirement) == order.Requirement)
             return new(AnglerQuestStatus.Active, order);

@@ -1,5 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
-using PvPAdventure.Common.Game;
+using PvPAdventure.Core.Config;
 using System;
 using Terraria;
 using Terraria.DataStructures;
@@ -34,17 +34,22 @@ public readonly record struct FishingCatchContext(Player Player, FishingAttempt 
 }
 
 /// <summary>
-/// Data-driven fishing catch replacement rules.
-/// - Tune constants and weighted pools here.
-/// - Keep hook code tiny; keep reward decisions here.
+/// Applies the server's fishing settings to the owner's catch.
 /// </summary>
 public static class FishingCatchRules
 {
-    // --- Change global feature gates here ---
-    private const bool RequirePvPAdventurePlaying = false;
     private const int BiomeCrateWeight = 10;
-    private const int PotionFishWeight = 20;
-    private const int UtilityWeight = 22;
+    private static readonly FishingSystemConfig DefaultConfig = new();
+
+    internal static FishingSystemConfig Config => ModContent.GetInstance<ServerConfig>()?.FishingSystem ?? DefaultConfig;
+
+    private enum Pool
+    {
+        Crates = 1,
+        PotionFish,
+        Utility,
+        Supplies,
+    }
 
     private static readonly WeightedCatch[] PreHardmodeCrates =
     [
@@ -62,150 +67,173 @@ public static class FishingCatchRules
         new(ItemID.None, BiomeCrateWeight),
     ];
 
-    private static readonly WeightedCatch[] PreHardmodePotionFish =
-    [
-        new(ItemID.ArmoredCavefish, 24),
-        new(ItemID.VariegatedLardfish, 18),
-        new(ItemID.Ebonkoi, 6),
-    ];
+    public static void Apply(FishingCatchContext context, ref int itemDrop, ref int npcSpawn,
+        ref AdvancedPopupRequest sonar, ref Vector2 sonarPosition) =>
+        Apply(context, Config, ref itemDrop, ref npcSpawn);
 
-    private static readonly WeightedCatch[] HardmodePotionFish =
-    [
-        ..PreHardmodePotionFish,
-        new(ItemID.Prismite, 20),
-    ];
-
-    private static readonly WeightedCatch[] UtilityFishingLoot =
-    [
-        new(ItemID.BombFish, 22),
-        new(ItemID.FrogLeg, 18),
-        new(ItemID.BalloonPufferfish, 14),
-        new(ItemID.ReaverShark, 12),
-        new(ItemID.SawtoothShark, 12),
-        new(ItemID.Swordfish, 12),
-        new(ItemID.Rockfish, 10),
-    ];
-
-    private static readonly WeightedCatch[] FishingSupplies =
-    [
-        new(ItemID.JourneymanBait, 28),
-        new(ItemID.MasterBait, 18),
-        new(ItemID.CratePotion, 20),
-        new(ItemID.SonarPotion, 18),
-        new(ItemID.FishingPotion, 16),
-    ];
-
-    private static readonly WeightedCatch[] Categories =
-    [
-        new(0, 45), // Crates
-        new(1, PotionFishWeight), // Potion fish
-        new(2, UtilityWeight), // Fishing utility loot
-        new(3, 13), // Fishing supplies
-    ];
-
-    public static void Apply(FishingCatchContext context, ref int itemDrop, ref int npcSpawn, ref AdvancedPopupRequest sonar, ref Vector2 sonarPosition)
+    internal static void Apply(FishingCatchContext context, FishingSystemConfig config, ref int itemDrop, ref int npcSpawn)
     {
-        if (!ShouldUseAdventureFishingRules(context))
+        if (!context.HasPlayer || !config.RerollCatchesEnabled)
             return;
 
         if (!context.IsWater)
         {
-            if (!context.IsVanillaNpcCatch && !context.IsVanillaItemCatch &&
+            bool boostEnabled = context.Attempt.inLava ? config.EnableLavaBoost : config.EnableHoneyBoost;
+            if (boostEnabled && !context.IsVanillaNpcCatch && !context.IsVanillaItemCatch &&
                 FishingCatchBoosts.TryFillEmptyLiquidRoll(context, out int liquidCatch))
                 SetItemCatch(liquidCatch, ref itemDrop, ref npcSpawn);
             return;
         }
 
-        // --- Change fishable NPC replacement here ---
-        if (TryRollAdventureNpcCatch(context, out int npcType))
-        {
-            npcSpawn = npcType;
-            itemDrop = -1;
-            sonar.Text = Lang.GetNPCNameValue(npcType);
-            sonar.Color = Color.LightGreen;
-            sonar.Velocity = Vector2.Zero;
-            sonar.DurationInFrames = 180;
-            sonarPosition = context.Player.Center - new Vector2(0f, 64f);
+        if (!context.IsVanillaNpcCatch && context.IsVanillaItemCatch && context.VanillaItemDrop == context.Attempt.questFish)
             return;
+
+        bool blockPrismite = !context.IsHardmode && context.VanillaItemDrop == ItemID.Prismite;
+        bool reroll = context.IsVanillaNpcCatch ||
+            (context.IsVanillaItemCatch && (blockPrismite || IsFillerCatch(context.VanillaItemDrop, config)));
+        if (reroll)
+        {
+            int replacement = RollGoodCatch(context, config);
+            if (replacement > ItemID.None)
+            {
+                SetItemCatch(replacement, ref itemDrop, ref npcSpawn);
+                return;
+            }
         }
 
-        if (context.IsVanillaNpcCatch || !context.IsVanillaItemCatch || IsFillerCatch(context.VanillaItemDrop) ||
-            (context.VanillaItemDrop == ItemID.Prismite && !context.IsHardmode))
-            SetItemCatch(RollGoodCatch(context), ref itemDrop, ref npcSpawn);
+        if (blockPrismite)
+            itemDrop = ItemID.None;
     }
 
-    private static bool ShouldUseAdventureFishingRules(FishingCatchContext context)
+    internal static bool IsFillerCatch(int itemType) => IsFillerCatch(itemType, Config);
+
+    private static bool IsFillerCatch(int itemType, FishingSystemConfig config)
     {
-        if (!context.HasPlayer)
+        if (itemType <= ItemID.None || config.RerolledCatches is null)
             return false;
-
-        if (RequirePvPAdventurePlaying && ModContent.GetInstance<GameManager>().CurrentPhase != GameManager.Phase.Playing)
-            return false;
-
-        return true;
-    }
-
-    internal static bool IsFillerCatch(int itemType) => itemType is
-        ItemID.OldShoe or ItemID.TinCan or ItemID.FishingSeaweed or ItemID.Bass or
-        ItemID.Trout or ItemID.AtlanticCod or ItemID.Shrimp or ItemID.SpecularFish or
-        ItemID.Stinkfish or ItemID.PrincessFish or ItemID.DoubleCod or ItemID.Hemopiranha or ItemID.NeonTetra;
-
-    private static int RollGoodCatch(FishingCatchContext context)
-    {
-        return WeightedCatchPool.Roll(Categories) switch
+        foreach (var item in config.RerolledCatches)
         {
-            0 => RollCrate(context),
-            1 => RollPotionFish(context),
-            2 => RollUtilityLoot(context),
-            3 => WeightedCatchPool.Roll(FishingSupplies),
-            _ => RollCrate(context),
-        };
+            if (item?.Type == itemType)
+                return true;
+        }
+        return false;
     }
 
-    private static int RollPotionFish(FishingCatchContext context)
+    private static int RollGoodCatch(FishingCatchContext context, FishingSystemConfig config)
     {
-        if (FishingCatchBoosts.TryReplacePotionFish(context, PotionFishWeight / 100d, out int bonus))
-            return bonus;
-        return WeightedCatchPool.Roll(context.IsHardmode ? HardmodePotionFish : PreHardmodePotionFish);
+        bool ocean = IsOceanUtilityPond(context.Attempt);
+        bool underground = context.Attempt.heightLevel > 1;
+        bool blockPrismite = !context.IsHardmode;
+
+        var potionFish = new EligiblePool(config.PotionFish, ocean, underground, blockPrismite);
+        var utility = new EligiblePool(config.Utility, ocean, underground, blockPrismite);
+        var supplies = new EligiblePool(config.FishingSupplies, ocean, underground, blockPrismite);
+        int cratesWeight = FishingSystemConfig.ClampWeight(config.Crates?.Weight ?? 0);
+        int totalWeight = cratesWeight + potionFish.Weight + utility.Weight + supplies.Weight;
+        if (totalWeight == 0)
+            return ItemID.None;
+
+        ReadOnlySpan<WeightedCatch> pools =
+        [
+            new((int)Pool.Crates, cratesWeight),
+            new((int)Pool.PotionFish, potionFish.Weight),
+            new((int)Pool.Utility, utility.Weight),
+            new((int)Pool.Supplies, supplies.Weight),
+        ];
+        switch ((Pool)WeightedCatchPool.Roll(pools))
+        {
+            case Pool.Crates:
+                return RollCrate(context);
+            case Pool.PotionFish:
+                if (FishingCatchBoosts.TryReplacePotionFish(context, config, (double)potionFish.Weight / totalWeight, out int bonus))
+                    return bonus;
+                return potionFish.Roll();
+            case Pool.Utility:
+                int item = utility.Roll();
+                if (item == ItemID.BombFish && config.EnableFrostDaggerfishBoost)
+                {
+                    double share = (double)utility.Weight / totalWeight * utility.BombFishShare;
+                    if (FishingCatchBoosts.TryReplaceBombFish(context, config, share))
+                        return ItemID.FrostDaggerfish;
+                }
+                return item;
+            case Pool.Supplies:
+                return supplies.Roll();
+            default:
+                return ItemID.None;
+        }
     }
 
     internal static bool IsOceanUtilityPond(FishingAttempt attempt) =>
         attempt.heightLevel <= 1 && attempt.waterTilesCount > 1000 &&
         (attempt.X < 380 || attempt.X > Main.maxTilesX - 380);
 
-    private static int RollUtilityLoot(FishingCatchContext context)
+    private readonly struct EligiblePool
     {
-        var attempt = context.Attempt;
-        bool ocean = IsOceanUtilityPond(attempt);
-        bool belowSurface = attempt.heightLevel > 1;
-        Span<WeightedCatch> eligible = stackalloc WeightedCatch[UtilityFishingLoot.Length];
-        int count = 0;
-        int totalWeight = 0;
-        foreach (WeightedCatch entry in UtilityFishingLoot)
+        private readonly FishingRewardPoolConfig pool;
+        private readonly bool ocean;
+        private readonly bool underground;
+        private readonly bool blockPrismite;
+        private readonly int totalItemWeight;
+        private readonly int bombFishWeight;
+
+        public int Weight => totalItemWeight > 0 ? FishingSystemConfig.ClampWeight(pool.Weight) : 0;
+        public double BombFishShare => (double)bombFishWeight / totalItemWeight;
+
+        public EligiblePool(FishingRewardPoolConfig pool, bool ocean, bool underground, bool blockPrismite)
         {
-            bool canCatch = entry.ItemType switch
+            this.pool = pool;
+            this.ocean = ocean;
+            this.underground = underground;
+            this.blockPrismite = blockPrismite;
+
+            if (pool?.Items is null || pool.Weight <= 0)
+                return;
+            foreach (var entry in pool.Items)
             {
-                ItemID.ReaverShark or ItemID.SawtoothShark or ItemID.Swordfish => ocean,
-                ItemID.Rockfish => belowSurface,
-                _ => true,
-            };
-            if (canCatch)
-            {
-                eligible[count++] = entry;
-                totalWeight += entry.Weight;
+                int item = entry?.Item?.Type ?? ItemID.None;
+                if (!CanCatch(item))
+                    continue;
+                int weight = FishingSystemConfig.ClampWeight(entry.Weight);
+                totalItemWeight += weight;
+                if (item == ItemID.BombFish)
+                    bombFishWeight += weight;
             }
         }
 
-        int item = WeightedCatchPool.Roll(eligible[..count]);
-        if (item == ItemID.BombFish &&
-            FishingCatchBoosts.TryReplaceBombFish(context, UtilityWeight / 100d * UtilityFishingLoot[0].Weight / totalWeight))
-            return ItemID.FrostDaggerfish;
-        return item;
+        public int Roll()
+        {
+            if (totalItemWeight <= 0)
+                return ItemID.None;
+            int roll = Main.rand.Next(totalItemWeight);
+            foreach (var entry in pool.Items)
+            {
+                int item = entry?.Item?.Type ?? ItemID.None;
+                if (!CanCatch(item))
+                    continue;
+                int weight = FishingSystemConfig.ClampWeight(entry.Weight);
+                if (roll < weight)
+                    return item;
+                roll -= weight;
+            }
+            return ItemID.None;
+        }
+
+        private bool CanCatch(int item) => item switch
+        {
+            ItemID.ReaverShark or ItemID.SawtoothShark or ItemID.Swordfish => ocean,
+            ItemID.Rockfish => underground,
+            ItemID.Prismite => !blockPrismite,
+            _ => item > ItemID.None,
+        };
     }
+
+    internal static ReadOnlySpan<WeightedCatch> GetCrateTiers(bool hardmode) =>
+        hardmode ? HardmodeCrates : PreHardmodeCrates;
 
     private static int RollCrate(FishingCatchContext context)
     {
-        int crate = WeightedCatchPool.Roll(context.IsHardmode ? HardmodeCrates : PreHardmodeCrates);
+        int crate = WeightedCatchPool.Roll(GetCrateTiers(context.IsHardmode));
         return crate == ItemID.None ? RollBiomeCrate(context) : crate;
     }
 
@@ -242,27 +270,7 @@ public static class FishingCatchRules
             return hardmode ? ItemID.FloatingIslandFishingCrateHard : ItemID.FloatingIslandFishingCrate;
 
         // Send the biome share to the common crate when no region qualifies.
-        return hardmode ? ItemID.WoodenCrateHard : ItemID.WoodenCrate;
-    }
-
-    private static bool TryRollAdventureNpcCatch(FishingCatchContext context, out int npcType)
-    {
-        npcType = NPCID.None;
-
-        // --- Change NPC catch availability here ---
-        // Example:
-        // if (!context.Attempt.rare && !context.Attempt.veryrare)
-        //     return false;
-
-        // --- Change NPC catch chance here ---
-        // Example:
-        // if (Main.rand.NextBool(100))
-        // {
-        //     npcType = NPCID.Goldfish;
-        //     return true;
-        // }
-
-        return false;
+        return GetCrateTiers(hardmode)[0].ItemType;
     }
 
     private static void SetItemCatch(int itemType, ref int itemDrop, ref int npcSpawn)

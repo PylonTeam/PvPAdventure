@@ -37,6 +37,16 @@ public sealed class ServerConfig : ModConfig
     [Expand(false, false)]
     public RacePeriodConfig RacePeriod = new();
 
+    [ConfigIcon(ItemID.GoldenFishingRod)]
+    [BackgroundColor(205, 110, 60)]
+    [Expand(false, false)]
+    public FishingSystemConfig FishingSystem = new();
+
+    [ConfigIcon(ItemID.AnglerHat)]
+    [BackgroundColor(205, 110, 60)]
+    [Expand(false, false)]
+    public AnglerRewardsConfig AnglerRewards = new();
+
     [Header("NPCs")]
     [HeaderIcon(267)]
     [ConfigIcon(nameof(Ass.ConfigBoundNPC))]
@@ -81,6 +91,10 @@ public sealed class ServerConfig : ModConfig
         ShakingChest.ShopItems ??= ServerConfigDefaults.CreateShopItems();
         TravelSystem ??= new();
         RacePeriod ??= new();
+        FishingSystem ??= new();
+        FishingSystem.RestoreMissingValues();
+        AnglerRewards ??= new();
+        AnglerRewards.RestoreMissingValues();
         WorldGeneration ??= new();
         InvasionSizes ??= ServerConfigDefaults.CreateInvasionSizes();
     }

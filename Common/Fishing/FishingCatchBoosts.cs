@@ -1,4 +1,6 @@
+using PvPAdventure.Core.Config;
 using System;
+using System.Collections.Generic;
 using Terraria;
 using Terraria.DataStructures;
 using Terraria.ID;
@@ -9,23 +11,26 @@ internal static class FishingCatchBoosts
 {
     private const double WeaponCap = 0.03;
     private const double FrostDaggerfishCap = 0.06;
+    private const double BonusMultiplier = 5;
 
-    public static bool TryReplacePotionFish(FishingCatchContext context, double potionFishShare, out int item)
+    public static bool TryReplacePotionFish(FishingCatchContext context, FishingSystemConfig config, double potionFishShare, out int item)
     {
         item = ItemID.None;
         Player player = context.Player;
-        if (context.Attempt.fishingLevel <= 0 ||
-            (!(player.ZoneDungeon && NPC.downedBoss3) &&
-             !(context.IsHardmode && (player.ZoneCorrupt || player.ZoneCrimson || player.ZoneHallow))))
+        bool alchemyTable = config.EnableAlchemyTableBoost && player.ZoneDungeon && NPC.downedBoss3;
+        bool crystalSerpent = config.EnableCrystalSerpentBoost && context.IsHardmode && player.ZoneHallow;
+        bool toxikarp = config.EnableToxikarpBoost && context.IsHardmode && player.ZoneCorrupt;
+        bool bladetongue = config.EnableBladetongueBoost && context.IsHardmode && player.ZoneCrimson;
+        if (context.Attempt.fishingLevel <= 0 || !(alchemyTable || crystalSerpent || toxikarp || bladetongue))
             return false;
 
-        var odds = FishingCatchOdds.ForWater(context);
+        var odds = FishingCatchOdds.ForWater(context, config);
         Span<(int Item, double Extra)> boosts =
         [
-            (ItemID.AlchemyTable, odds.AlchemyTable * 4),
-            (ItemID.CrystalSerpent, ExtraChance(odds.CrystalSerpent, 5, WeaponCap)),
-            (ItemID.Toxikarp, ExtraChance(odds.Toxikarp, 5, WeaponCap)),
-            (ItemID.Bladetongue, ExtraChance(odds.Bladetongue, 5, WeaponCap)),
+            (ItemID.AlchemyTable, alchemyTable ? odds.AlchemyTable * (BonusMultiplier - 1) : 0),
+            (ItemID.CrystalSerpent, crystalSerpent ? ExtraChance(odds.CrystalSerpent, BonusMultiplier, WeaponCap) : 0),
+            (ItemID.Toxikarp, toxikarp ? ExtraChance(odds.Toxikarp, BonusMultiplier, WeaponCap) : 0),
+            (ItemID.Bladetongue, bladetongue ? ExtraChance(odds.Bladetongue, BonusMultiplier, WeaponCap) : 0),
         ];
         double budget = odds.Filler * potionFishShare;
         double requested = 0;
@@ -48,15 +53,16 @@ internal static class FishingCatchBoosts
         return false;
     }
 
-    public static bool TryReplaceBombFish(FishingCatchContext context, double bombFishShare)
+    public static bool TryReplaceBombFish(FishingCatchContext context, FishingSystemConfig config, double bombFishShare)
     {
         if (context.Attempt.fishingLevel <= 0 || !context.Player.ZoneSnow ||
             (context.Player.ZoneDungeon && NPC.downedBoss3))
             return false;
 
-        var odds = FishingCatchOdds.ForWater(context);
+        var odds = FishingCatchOdds.ForWater(context, config);
         double extra = ExtraChance(odds.FrostDaggerfish, 1.5, FrostDaggerfishCap);
-        return extra > 0 && Main.rand.NextDouble() * (odds.Filler * bombFishShare) < extra;
+        double budget = odds.Filler * bombFishShare;
+        return extra > 0 && budget > 0 && Main.rand.NextDouble() * budget < extra;
     }
 
     public static bool TryFillEmptyLiquidRoll(FishingCatchContext context, out int item)
@@ -89,14 +95,14 @@ internal static class FishingCatchBoosts
         else
             return false;
 
-        return empty > 0 && Main.rand.NextDouble() * empty < native * 4;
+        return empty > 0 && Main.rand.NextDouble() * empty < native * (BonusMultiplier - 1);
     }
 
     private static double ExtraChance(double native, double multiplier, double cap) =>
         Math.Max(0, Math.Min(native * (multiplier - 1), cap - native));
 }
 
-/// <summary>Projects Terraria 1.4.4 water rolls onto the buff targets and their filler budget.</summary>
+/// <summary>Projects base Terraria water rolls onto the buff targets and the server's reroll budget.</summary>
 internal struct FishingCatchOdds
 {
     public double Filler { get; private set; }
@@ -107,13 +113,17 @@ internal struct FishingCatchOdds
     public double FrostDaggerfish { get; private set; }
 
     private double remaining;
+    private HashSet<int> rerolledItems;
 
     private readonly record struct Quality(bool Common, bool Uncommon, bool Rare, bool VeryRare, bool Legendary);
 
     public static double Rarity(int power, int scale, int minimum) => 1d / Math.Max(minimum, scale / power);
     public static double CrateChance(Player player) => player.cratePotion ? 0.25 : 0.1;
 
-    public static FishingCatchOdds ForWater(FishingCatchContext context)
+    public static FishingCatchOdds ForWater(FishingCatchContext context) =>
+        ForWater(context, FishingCatchRules.Config);
+
+    internal static FishingCatchOdds ForWater(FishingCatchContext context, FishingSystemConfig config)
     {
         Player player = context.Player;
         FishingAttempt attempt = context.Attempt;
@@ -131,8 +141,34 @@ internal struct FishingCatchOdds
         int power = attempt.fishingLevel;
         double junk = attempt.waterTilesCount < attempt.waterNeededToFish && power < 49
             ? Math.Pow((49 - power) / 50d, 2) : 0;
-        double water = (1 - enemy) * (1 - junk) * (1 - CrateChance(player));
-        FishingCatchOdds odds = new() { Filler = enemy + (1 - enemy) * junk * (7d / 8) };
+        double water = (1 - enemy) * (1 - junk);
+        double crateChance = CrateChance(player);
+        bool rerollsCrates = false;
+        FishingCatchOdds odds = new() { rerolledItems = [] };
+        if (config.RerollCatchesEnabled)
+        {
+            odds.Filler = enemy;
+            if (config.RerolledCatches is not null)
+            {
+                foreach (var item in config.RerolledCatches)
+                {
+                    int type = item?.Type ?? ItemID.None;
+                    if (type <= ItemID.None || type == attempt.questFish)
+                        continue;
+                    odds.rerolledItems.Add(type);
+                    if (type < ItemID.Sets.IsFishingCrate.Length && ItemID.Sets.IsFishingCrate[type])
+                        rerollsCrates = true;
+                }
+            }
+            if (!context.IsHardmode)
+                odds.rerolledItems.Add(ItemID.Prismite);
+        }
+        odds.remaining = (1 - enemy) * junk;
+        odds.Catch(ItemID.JojaCola, 1d / 8);
+        odds.Catch(ItemID.OldShoe, 1d / 3);
+        odds.Catch(ItemID.TinCan, 1d / 2);
+        odds.Catch(ItemID.FishingSeaweed);
+
         Span<double> chances = [Rarity(power, 150, 2), Rarity(power, 300, 3), Rarity(power, 1050, 4),
             Rarity(power, 2250, 5), Rarity(power, 4500, 6)];
 
@@ -143,19 +179,33 @@ internal struct FishingCatchOdds
             for (int i = 0; i < chances.Length; i++)
                 odds.remaining *= (mask & (1 << i)) != 0 ? chances[i] : 1 - chances[i];
 
+            double itemChance = odds.remaining * (1 - crateChance);
+            if (rerollsCrates)
+            {
+                odds.remaining *= crateChance;
+                odds.Crates(context, q, dungeon, corrupt, crimson, jungle);
+            }
+            odds.remaining = itemChance;
+
             if (q.Legendary)
             {
                 if (Main.bloodMoon)
-                    odds.Keep(NPC.combatBookWasUsed ? 0.5 : 2d / 3);
-                odds.Keep(1 - 0.8 * 0.8 * 0.9);
+                {
+                    if (!NPC.combatBookWasUsed)
+                        odds.Catch(ItemID.CombatBook, 1d / 3);
+                    odds.Catch(ItemID.DreadoftheRedSea, 0.5);
+                }
+                odds.Catch(ItemID.FrogLeg, 0.2);
+                odds.Catch(ItemID.BalloonPufferfish, 0.2);
+                odds.Catch(ItemID.ZephyrFish, 0.1);
             }
             else if (!q.VeryRare && q.Uncommon)
-                odds.Keep(0.2);
+                odds.Catch(ItemID.BombFish, 0.2);
 
             if (dungeon)
             {
                 if (q.VeryRare)
-                    odds.AlchemyTable += odds.Take(1d / 7);
+                    odds.AlchemyTable += odds.Catch(ItemID.AlchemyTable, 1d / 7);
             }
             else
             {
@@ -164,21 +214,21 @@ internal struct FishingCatchOdds
                 {
                     odds.remaining *= 0.5;
                     double region = odds.remaining;
-                    odds.Corruption(q, context.IsHardmode, scalyTruffle);
+                    odds.Corruption(q, attempt.questFish, context.IsHardmode, scalyTruffle);
                     double corruptRemaining = odds.remaining;
                     odds.remaining = region;
                     odds.Crimson(q, attempt.questFish, context.IsHardmode, scalyTruffle);
                     odds.remaining += corruptRemaining;
                 }
                 else if (corrupt)
-                    odds.Corruption(q, context.IsHardmode, scalyTruffle);
+                    odds.Corruption(q, attempt.questFish, context.IsHardmode, scalyTruffle);
                 else if (crimson)
                     odds.Crimson(q, attempt.questFish, context.IsHardmode, scalyTruffle);
                 else if (player.ZoneHallow)
                     odds.Hallow(q, attempt, context.IsHardmode, scalyTruffle, desert);
 
                 if (player.ZoneGlowshroom && q.Uncommon && attempt.questFish == ItemID.AmanitaFungifin)
-                    odds.Keep();
+                    odds.Catch(attempt.questFish);
                 odds.SnowAndJungle(q, attempt, snow, jungle);
             }
 
@@ -189,7 +239,9 @@ internal struct FishingCatchOdds
                 odds.Ocean(q, attempt.questFish);
                 odds.remaining = inland;
             }
-            if (!desert)
+            if (desert)
+                odds.Desert(q, attempt.questFish);
+            else
                 odds.Inland(q, attempt);
         }
         return odds;
@@ -202,67 +254,114 @@ internal struct FishingCatchOdds
         return taken;
     }
 
-    private void Keep(double chance = 1) => Take(chance);
-    private void Reroll(double chance = 1) => Filler += Take(chance);
+    private double Catch(int item, double chance = 1)
+    {
+        double amount = Take(chance);
+        if (amount > 0 && rerolledItems.Contains(item))
+            Filler += amount;
+        return amount;
+    }
+
+    private void Crates(FishingCatchContext context, Quality q, bool dungeon, bool corrupt, bool crimson, double jungle)
+    {
+        Player player = context.Player;
+        FishingAttempt attempt = context.Attempt;
+        bool hardmode = context.IsHardmode;
+        if (q.Rare)
+        {
+            if (dungeon)
+                Catch(hardmode ? ItemID.DungeonFishingCrateHard : ItemID.DungeonFishingCrate);
+            if (player.ZoneBeach)
+                Catch(hardmode ? ItemID.OceanCrateHard : ItemID.OceanCrate);
+            else if (Main.remixWorld && attempt.heightLevel == 1 && attempt.Y >= Main.rockLayer)
+                Catch(hardmode ? ItemID.OceanCrateHard : ItemID.OceanCrate, 0.5);
+
+            if (corrupt)
+                Catch(hardmode ? ItemID.CorruptFishingCrateHard : ItemID.CorruptFishingCrate, crimson ? 0.5 : 1);
+            if (crimson)
+                Catch(hardmode ? ItemID.CrimsonFishingCrateHard : ItemID.CrimsonFishingCrate);
+            if (player.ZoneHallow)
+                Catch(hardmode ? ItemID.HallowedFishingCrateHard : ItemID.HallowedFishingCrate);
+            if (jungle > 0)
+                Catch(hardmode ? ItemID.JungleFishingCrateHard : ItemID.JungleFishingCrate, jungle);
+            if (player.ZoneSnow)
+                Catch(hardmode ? ItemID.FrozenCrateHard : ItemID.FrozenCrate);
+            if (player.ZoneDesert)
+                Catch(hardmode ? ItemID.OasisCrateHard : ItemID.OasisCrate);
+            if (attempt.heightLevel == 0)
+                Catch(hardmode ? ItemID.FloatingIslandFishingCrateHard : ItemID.FloatingIslandFishingCrate);
+        }
+        if (q.VeryRare || q.Legendary)
+            Catch(hardmode ? ItemID.GoldenCrateHard : ItemID.GoldenCrate);
+        else if (q.Uncommon)
+            Catch(hardmode ? ItemID.IronCrateHard : ItemID.IronCrate);
+        else
+            Catch(hardmode ? ItemID.WoodenCrateHard : ItemID.WoodenCrate);
+    }
+
+    private void Desert(Quality q, int quest)
+    {
+        if (q.Uncommon)
+            Catch(quest is ItemID.ScarabFish or ItemID.ScorpioFish ? quest : ItemID.Oyster);
+        else
+        {
+            Catch(ItemID.RockLobster, 1d / 3);
+            Catch(ItemID.Flounder);
+        }
+    }
 
     // Quest gates match the engine location tests in FishingCheck_RollItemDrop.
-    private void Corruption(Quality q, bool hardmode, bool scalyTruffle)
+    private void Corruption(Quality q, int quest, bool hardmode, bool scalyTruffle)
     {
         if (scalyTruffle)
-            Keep(2d / 3);
+            Catch(ItemID.ScalyTruffle, 2d / 3);
         if (q.Legendary && hardmode)
-            Toxikarp += Take(0.5);
-        if (q.Rare || q.Uncommon)
-            Keep(); // Clubberfish, evil quest fish, or Ebonkoi.
+            Toxikarp += Catch(ItemID.Toxikarp, 0.5);
+        if (q.Rare)
+            Catch(ItemID.PurpleClubberfish);
+        else if (q.Uncommon)
+            Catch(quest is ItemID.Cursedfish or ItemID.InfectedScabbardfish or ItemID.EaterofPlankton ? quest : ItemID.Ebonkoi);
     }
 
     private void Crimson(Quality q, int quest, bool hardmode, bool scalyTruffle)
     {
         if (scalyTruffle)
-            Keep(2d / 3);
+            Catch(ItemID.ScalyTruffle, 2d / 3);
         if (q.Legendary && hardmode)
-            Bladetongue += Take(0.5);
+            Bladetongue += Catch(ItemID.Bladetongue, 0.5);
         if (q.Uncommon)
-        {
-            if (quest is ItemID.BloodyManowar or ItemID.Ichorfish)
-                Keep();
-            else
-                Reroll(); // Hemopiranha.
-        }
+            Catch(quest is ItemID.BloodyManowar or ItemID.Ichorfish ? quest : ItemID.Hemopiranha);
         else if (q.Common)
-            Keep();
+            Catch(ItemID.CrimsonTigerfish);
     }
 
     private void Hallow(Quality q, FishingAttempt attempt, bool hardmode, bool scalyTruffle, bool desert)
     {
         if (desert)
-            Keep(0.5);
+        {
+            double region = remaining;
+            remaining *= 0.5;
+            Desert(q, attempt.questFish);
+            remaining = region * 0.5;
+        }
         if (scalyTruffle)
-            Keep(2d / 3);
+            Catch(ItemID.ScalyTruffle, 2d / 3);
         if (q.Legendary && hardmode)
         {
-            CrystalSerpent += Take(0.5);
-            Keep(2d / 3); // Lady of the Lake.
+            CrystalSerpent += Catch(ItemID.CrystalSerpent, 0.5);
+            Catch(ItemID.LadyOfTheLake, 2d / 3);
         }
 
         bool deep = attempt.heightLevel > 1;
         int quest = attempt.questFish;
-        if ((deep && q.VeryRare) || (q.Uncommon && (deep ? quest == ItemID.MirageFish : quest == ItemID.Pixiefish)))
-            Keep();
-        if (q.Rare)
-        {
-            if (hardmode)
-                Keep();
-            else
-                Reroll(); // Prismite before Hardmode.
-        }
-        if (q.Uncommon)
-        {
-            if (quest == ItemID.UnicornFish)
-                Keep();
-            else
-                Reroll(); // Princess Fish.
-        }
+        if (deep && q.VeryRare)
+            Catch(ItemID.ChaosFish);
+        else if (q.Uncommon && (deep ? quest == ItemID.MirageFish : quest == ItemID.Pixiefish))
+            Catch(quest);
+        else if (q.Rare)
+            Catch(ItemID.Prismite);
+        else if (q.Uncommon)
+            Catch(quest == ItemID.UnicornFish ? quest : ItemID.PrincessFish);
     }
 
     private void SnowAndJungle(Quality q, FishingAttempt attempt, bool snow, double jungle)
@@ -293,19 +392,19 @@ internal struct FishingCatchOdds
         int quest = attempt.questFish;
         if (q.Uncommon && (quest == ItemID.Pengfish && layer < 2 || quest == ItemID.TundraTrout && layer == 1 ||
             quest is ItemID.Fishron or ItemID.MutantFlinxfin && layer >= 2))
-            Keep();
+            Catch(quest);
 
         if (q.Common)
-            FrostDaggerfish += Take(1d / 12);
+            FrostDaggerfish += Catch(ItemID.FrostDaggerfish, 1d / 12);
         if (q.Uncommon)
         {
-            FrostDaggerfish += Take(1d / 6);
-            Keep(); // Frost Minnow.
+            FrostDaggerfish += Catch(ItemID.FrostDaggerfish, 1d / 6);
+            Catch(ItemID.FrostMinnow);
         }
         else if (q.Common)
-            Reroll(); // Atlantic Cod.
+            Catch(ItemID.AtlanticCod);
         else if (layer > 1)
-            Reroll(1d / 3); // Specular Fish.
+            Catch(ItemID.SpecularFish, 1d / 3);
     }
 
     private void Jungle(Quality q, FishingAttempt attempt)
@@ -314,65 +413,90 @@ internal struct FishingCatchOdds
         int quest = attempt.questFish;
         if (q.Uncommon)
         {
-            if (layer == 1 && quest is ItemID.Catfish or ItemID.Derpfish or ItemID.TropicalBarracuda || layer >= 1 && quest == ItemID.Mudfish || layer > 1)
-                Keep(); // Quest fish or Variegated Lardfish.
+            if (layer == 1 && quest is ItemID.Catfish or ItemID.Derpfish or ItemID.TropicalBarracuda || layer >= 1 && quest == ItemID.Mudfish)
+                Catch(quest);
             else
-                Reroll(); // Double Cod.
+                Catch(layer > 1 ? ItemID.VariegatedLardfish : ItemID.DoubleCod);
         }
         else if (q.Common)
-            Reroll(); // Neon Tetra.
+            Catch(ItemID.NeonTetra);
     }
 
     private void Ocean(Quality q, int quest)
     {
         if (q.VeryRare)
-            Keep(); // Sharks.
+        {
+            Catch(ItemID.ReaverShark, 0.5);
+            Catch(ItemID.SawtoothShark);
+        }
         if (q.Rare)
-            Keep(1 - 0.8 * (2d / 3)); // Pink Jellyfish and Swordfish.
-        if (q.Uncommon && quest is ItemID.CapnTunabeard or ItemID.Clownfish)
-            Keep();
-
-        if (q.Uncommon || !q.Common)
-            Reroll(); // Shrimp or Trout.
+        {
+            Catch(ItemID.PinkJellyfish, 0.2);
+            Catch(ItemID.Swordfish, 1d / 3);
+        }
+        if (q.Uncommon)
+            Catch(quest is ItemID.CapnTunabeard or ItemID.Clownfish ? quest : ItemID.Shrimp);
+        else if (q.Common)
+        {
+            Catch(ItemID.RedSnapper, 0.5);
+            Catch(ItemID.Tuna);
+        }
         else
-            Keep();
+            Catch(ItemID.Trout);
     }
 
     private void Inland(Quality q, FishingAttempt attempt)
     {
         int layer = attempt.heightLevel;
         int quest = attempt.questFish;
-        if (q.Uncommon &&
-            (layer < 2 && quest is ItemID.Harpyfish or ItemID.FallenStarfish or ItemID.TheFishofCthulu ||
-             layer == 0 || // Sky quest fish and Damselfish.
-             layer is 1 or 2 && quest == ItemID.Dirtfish ||
-             layer == 1 && quest is ItemID.Bunnyfish or ItemID.DynamiteFish or ItemID.ZombieFish))
-            Keep();
+        if (q.Uncommon)
+        {
+            if (layer < 2 && quest is ItemID.Harpyfish or ItemID.FallenStarfish or ItemID.TheFishofCthulu ||
+                layer == 0 && quest is ItemID.Cloudfish or ItemID.Wyverntail or ItemID.Angelfish ||
+                layer is 1 or 2 && quest == ItemID.Dirtfish ||
+                layer == 1 && quest is ItemID.Bunnyfish or ItemID.DynamiteFish or ItemID.ZombieFish)
+                Catch(quest);
+            if (layer == 0)
+                Catch(ItemID.Damselfish);
+        }
 
         if (layer > 1)
         {
             if (q.Rare)
-                Keep(0.2); // Jellyfish.
+            {
+                double jellyfishRoll = remaining;
+                remaining *= 0.2;
+                if (Main.hardMode)
+                    Catch(ItemID.GreenJellyfish, 0.5);
+                Catch(ItemID.BlueJellyfish);
+                remaining = jellyfishRoll * 0.8;
+            }
             if (q.Legendary)
-                Keep(2d / 3); // Golden Carp.
+                Catch(ItemID.GoldenCarp, 2d / 3);
             if (q.VeryRare)
-                Keep(0.5); // Rockfish.
+                Catch(ItemID.Rockfish, 0.5);
             if (q.Rare)
-                Reroll(); // Stinkfish.
+                Catch(ItemID.Stinkfish);
             if (q.Uncommon)
             {
                 if (quest is ItemID.Bonefish or ItemID.Batfish or ItemID.Jewelfish or ItemID.Spiderfish || layer > 2 && quest is ItemID.Hungerfish or ItemID.DemonicHellfish or ItemID.GuideVoodooFish or ItemID.Fishotron)
-                    Keep();
-                Keep(0.75); // Armored Cavefish.
+                    Catch(quest);
+                Catch(ItemID.ArmoredCavefish, 0.75);
             }
 
+            double region = remaining;
             double cavefishOrSpecular = q.Uncommon || q.Common ? 1 : 0.25;
-            Reroll(cavefishOrSpecular * 0.75);
-            Keep(cavefishOrSpecular * 0.25 / (1 - cavefishOrSpecular * 0.75));
+            remaining *= cavefishOrSpecular;
+            Catch(ItemID.ArmoredCavefish, 0.25);
+            Catch(ItemID.SpecularFish);
+            remaining = region * (1 - cavefishOrSpecular);
         }
 
-        if (q.Uncommon && quest == ItemID.Slimefish || attempt.waterTilesCount > 1000 && q.Common)
-            Keep(); // Slimefish or Salmon.
-        Reroll(); // Bass.
+        if (q.Uncommon && quest == ItemID.Slimefish)
+            Catch(quest);
+        else if (attempt.waterTilesCount > 1000 && q.Common)
+            Catch(ItemID.Salmon);
+        else
+            Catch(ItemID.Bass);
     }
 }

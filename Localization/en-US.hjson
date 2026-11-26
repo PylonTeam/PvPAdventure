@@ -14,11 +14,19 @@ Mods: {
 
 		Angler: {
 			PreHardmodeChapterFinished: You got all of ’em? Huh. I thought you’d give up halfway. Lemme see… oh, he’s perfect. Here, take my good rod. Now go help your team. You can’t fish all day! Oh, and come back when the Wall goes down. I’ll think of something by then.
+			PreHardmodeChapterFinishedCustom: You got all of ’em? Huh. I thought you’d give up halfway. Lemme see… oh, he’s perfect. Now go help your team. You can’t fish all day! Oh, and come back when the Wall goes down. I’ll think of something by then.
 			WaitForHardmode: Come back when the Wall goes down. I’ll think of something by then.
 			WaitForMechanicalBoss: Go knock out one of those mechanical bosses. Then I’ve got a fish for you.
 			WaitForPlantera: Come back when Plantera’s dealt with. I’ve got something in mind.
 			WaitForGolem: Deal with Golem first. Then I’ve got one last fish for you.
 			Complete: That’s the whole list. Go see what your team’s up to.
+		}
+
+		FishingConfig: {
+			NoItem: No item
+			BiomeCrate: Biome
+			RequiresMechanicalBoss: Requires defeating a mechanical boss
+			RequiresBoss: Requires defeating {0}
 		}
 
 		Keybinds: {
@@ -432,6 +440,16 @@ Mods: {
 
 			ServerConfig: {
 				DisplayName: Adventure Server Config
+
+				FishingSystem: {
+					Label: Fishing System
+					Tooltip: Configure fishing rerolls and buffs
+				}
+
+				AnglerRewards: {
+					Label: Angler Rewards
+					Tooltip: Edit personal delivery rewards for the next match
+				}
 
 				RacePeriod: {
 					Label: Race Period
@@ -1030,6 +1048,276 @@ Mods: {
 				Price: {
 					Label: Price
 					Tooltip: Price in copper coins
+				}
+			}
+
+			FishingSystemConfig: {
+				Tooltip: ""
+
+				RerollCatchesEnabled: {
+					Label: Reroll Fishing Catches
+					Tooltip: Replace selected catches and fishing encounters, such as Blood Moon enemies. Turning this off also disables catch buffs.
+				}
+
+				RerolledCatches: {
+					Label: Rerolled Catches
+					Tooltip: Choose which catches to replace. Each reroll uses one of the four pools below.
+				}
+
+				Crates: {
+					Label: Crates
+					Tooltip: Set how often a reroll gives a crate and see the tier odds before and after Hardmode.
+				}
+
+				Utility: {
+					Label: Utility
+					Tooltip: Set how often a reroll gives utility items like Bomb Fish or Frog Legs. You can edit the items in this pool.
+				}
+
+				PotionFish: {
+					Label: Potion Fish
+					Tooltip: Set how often a reroll gives fish used in potions. You can edit the items in this pool.
+				}
+
+				FishingSupplies: {
+					Label: Fishing Supplies
+					Tooltip: Set how often a reroll gives bait or fishing potions. You can edit the items in this pool.
+				}
+
+				EnableAlchemyTableBoost: {
+					Label: Buff Alchemy Table
+					Tooltip: Up to 5× the normal chance to catch an Alchemy Table in the Dungeon after defeating Skeletron.
+				}
+
+				EnableFrostDaggerfishBoost: {
+					Label: Buff Frost Daggerfish
+					Tooltip: Up to 1.5× the normal chance to catch Frost Daggerfish in Snow. The buff stops adding chance at 6%.
+				}
+
+				EnableCrystalSerpentBoost: {
+					Label: Buff Crystal Serpent
+					Tooltip: Up to 5× the normal chance to catch a Crystal Serpent in Hardmode Hallow. The buff stops adding chance at 3%.
+				}
+
+				EnableToxikarpBoost: {
+					Label: Buff Toxikarp
+					Tooltip: Up to 5× the normal chance to catch a Toxikarp in Hardmode Corruption. The buff stops adding chance at 3%.
+				}
+
+				EnableBladetongueBoost: {
+					Label: Buff Bladetongue
+					Tooltip: Up to 5× the normal chance to catch a Bladetongue in Hardmode Crimson. The buff stops adding chance at 3%.
+				}
+
+				EnableHoneyBoost: {
+					Label: Buff Honeyfin
+					Tooltip: Convert some empty honey rolls into Honeyfin for up to 5× the normal catch chance.
+				}
+
+				EnableLavaBoost: {
+					Label: Buff Obsidian Swordfish
+					Tooltip: Convert some empty lava rolls into Obsidian Swordfish in Hardmode for up to 5× the normal catch chance.
+				}
+			}
+
+			FishingCratePoolConfig: {
+				Tooltip: ""
+
+				Weight: {
+					Label: Relative Chance
+					Tooltip: Increase this value to make this pool more likely than the others. Set it to 0 to disable the pool.
+				}
+
+				PreHardmode: {
+					Label: Pre-Hardmode
+					Tooltip: ""
+				}
+
+				Hardmode: {
+					Label: Hardmode
+					Tooltip: ""
+				}
+			}
+
+			FishingRewardPoolConfig: {
+				Tooltip: ""
+
+				Weight: {
+					Label: Relative Chance
+					Tooltip: Increase this value to make this pool more likely than the others. Set it to 0 to disable the pool.
+				}
+
+				Items: {
+					Label: Items
+					Tooltip: Choose which items this pool can give and how often each one appears.
+				}
+			}
+
+			FishingPoolEntry: {
+				Tooltip: ""
+
+				Item: {
+					Label: Item
+					Tooltip: ""
+				}
+
+				Weight: {
+					Label: Relative Chance
+					Tooltip: Increase this value to make this item more likely within its pool. Set it to 0 to remove it from the roll.
+				}
+			}
+
+			AnglerRewardsConfig: {
+				Tooltip: ""
+
+				Enabled: {
+					Label: Personal Angler Orders
+					Tooltip: Give each player their own Angler quest order. This takes effect immediately. Turning it off pauses personal progress for this round.
+				}
+
+				PreHardmode: {
+					Label: Pre-Hardmode
+					Tooltip: The six Pre-Hardmode quests and rewards
+				}
+
+				Hardmode: {
+					Label: Hardmode
+					Tooltip: The six Hardmode quests and rewards. After the sixth delivery, Amanita Fungifin repeats for a Truffle Worm.
+				}
+
+				GearMilestonesEnabled: {
+					Label: Enable Milestone Rewards
+					Tooltip: Give an extra reward for each of the first six deliveries across both chapters.
+				}
+
+				GearMilestones: {
+					Label: Milestone Rewards
+					Tooltip: Choose the extra reward for each of the first six total deliveries.
+				}
+			}
+
+			AnglerDelivery: {
+				Tooltip: ""
+
+				QuestFish: {
+					Label: Quest Fish
+					Tooltip: The fish the Angler asks for at this delivery
+				}
+			}
+
+			AnglerReward: {
+				Tooltip: ""
+
+				Item: {
+					Label: Reward Item
+					Tooltip: Choose an item or select None to leave this delivery without an item reward
+				}
+
+				Stack: {
+					Label: Quantity
+					Tooltip: Number awarded, up to the item’s stack limit
+				}
+			}
+
+			AnglerPreHardmodeRewards: {
+				Tooltip: ""
+
+				Delivery1: {
+					Label: Delivery 1
+					Tooltip: ""
+				}
+
+				Delivery2: {
+					Label: Delivery 2
+					Tooltip: ""
+				}
+
+				Delivery3: {
+					Label: Delivery 3
+					Tooltip: ""
+				}
+
+				Delivery4: {
+					Label: Delivery 4
+					Tooltip: ""
+				}
+
+				Delivery5: {
+					Label: Delivery 5
+					Tooltip: ""
+				}
+
+				Delivery6: {
+					Label: Delivery 6
+					Tooltip: ""
+				}
+			}
+
+			AnglerHardmodeRewards: {
+				Tooltip: ""
+
+				Delivery1: {
+					Label: Delivery 1
+					Tooltip: ""
+				}
+
+				Delivery2: {
+					Label: Delivery 2
+					Tooltip: ""
+				}
+
+				Delivery3: {
+					Label: Delivery 3
+					Tooltip: ""
+				}
+
+				Delivery4: {
+					Label: Delivery 4
+					Tooltip: ""
+				}
+
+				Delivery5: {
+					Label: Delivery 5
+					Tooltip: ""
+				}
+
+				Delivery6: {
+					Label: Delivery 6
+					Tooltip: ""
+				}
+			}
+
+			AnglerGearMilestones: {
+				Tooltip: ""
+
+				Delivery1: {
+					Label: Total deliveries 1
+					Tooltip: ""
+				}
+
+				Delivery2: {
+					Label: Total deliveries 2
+					Tooltip: ""
+				}
+
+				Delivery3: {
+					Label: Total deliveries 3
+					Tooltip: ""
+				}
+
+				Delivery4: {
+					Label: Total deliveries 4
+					Tooltip: ""
+				}
+
+				Delivery5: {
+					Label: Total deliveries 5
+					Tooltip: ""
+				}
+
+				Delivery6: {
+					Label: Total deliveries 6
+					Tooltip: ""
 				}
 			}
 

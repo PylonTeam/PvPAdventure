@@ -14,7 +14,7 @@ internal sealed class AnglerFishing : ModSystem
     private static void ProbeQuestFish(On_Projectile.orig_FishingCheck_ProbeForQuestFish orig,
         Projectile bobber, ref FishingAttempt attempt)
     {
-        if (!AnglerQuestSystem.IsPlaying)
+        if (!AnglerQuestSystem.UsesPersonalOrders)
         {
             orig(bobber, ref attempt);
             return;

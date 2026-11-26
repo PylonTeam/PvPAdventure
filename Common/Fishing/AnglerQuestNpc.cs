@@ -13,7 +13,7 @@ internal sealed class AnglerQuestNpc : GlobalNPC
 
     public override bool PreChatButtonClicked(NPC npc, bool firstButton)
     {
-        if (!firstButton || !AnglerQuestSystem.IsPlaying)
+        if (!firstButton || !AnglerQuestSystem.UsesPersonalOrders)
             return true;
 
         SoundEngine.PlaySound(SoundID.MenuTick);
@@ -27,19 +27,32 @@ internal sealed class AnglerQuestNpc : GlobalNPC
             Main.npc[npcIndex] is not { active: true, type: NPCID.Angler })
             return;
 
-        bool earlyChapterFinished = view.Notice == AnglerQuestNotice.PreHardmodeChapterFinished;
-        string dialogue = earlyChapterFinished ? "PreHardmodeChapterFinished" : view.Status switch
+        if (view.Status == AnglerQuestStatus.Disabled)
         {
-            AnglerQuestStatus.WaitForHardmode => "WaitForHardmode",
-            AnglerQuestStatus.WaitForMechanicalBoss => "WaitForMechanicalBoss",
-            AnglerQuestStatus.WaitForPlantera => "WaitForPlantera",
-            AnglerQuestStatus.WaitForGolem => "WaitForGolem",
-            AnglerQuestStatus.Complete => "Complete",
-            _ => null,
+            Main.npcChatCornerItem = ItemID.None;
+            Main.npcChatText = Lang.AnglerQuestChat();
+            return;
+        }
+
+        string dialogue = view.Notice switch
+        {
+            AnglerQuestNotice.PreHardmodeChapterFinished => "PreHardmodeChapterFinished",
+            AnglerQuestNotice.PreHardmodeChapterFinishedCustom => "PreHardmodeChapterFinishedCustom",
+            _ => view.Status switch
+            {
+                AnglerQuestStatus.WaitForHardmode => "WaitForHardmode",
+                AnglerQuestStatus.WaitForMechanicalBoss => "WaitForMechanicalBoss",
+                AnglerQuestStatus.WaitForPlantera => "WaitForPlantera",
+                AnglerQuestStatus.WaitForGolem => "WaitForGolem",
+                AnglerQuestStatus.Complete => "Complete",
+                _ => null,
+            },
         };
         if (dialogue != null)
         {
-            Main.npcChatCornerItem = earlyChapterFinished ? ItemID.GoldenFishingRod : ItemID.None;
+            Main.npcChatCornerItem = view.Notice == AnglerQuestNotice.PreHardmodeChapterFinished
+                ? ItemID.GoldenFishingRod
+                : view.ChapterReward;
             Main.npcChatText = Language.GetTextValue("Mods.PvPAdventure.Angler." + dialogue);
             return;
         }
