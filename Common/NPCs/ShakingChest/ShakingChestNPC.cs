@@ -297,8 +297,6 @@ public sealed class ShakingChestNPC : GlobalNPC
         if (Main.dedServ)
             return;
 
-        SoundEngine.PlaySound(SoundID.NPCDeath6, position + new Vector2(width, height) / 2f);
-
         for (int i = 0; i < 100; i++)
         {
             Dust dust = Dust.NewDustDirect(
