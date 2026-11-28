@@ -135,14 +135,15 @@ internal sealed class AdventureCountdown : ModSystem
     private void UpdateRelease(Vector2 center, float scale)
     {
         int sinceImpact = releaseAge - CountdownEffects.ImpactTick;
+        Vector2 hit = CountdownEffects.ImpactPoint(center, scale);
         if (sinceImpact is >= 0 and < 16)
         {
             float flash = 1f - MathHelper.SmoothStep(0f, 1f, sinceImpact / 16f);
-            Lighting.AddLight(center, new Vector3(.46f, .26f, .69f) * flash);
+            Lighting.AddLight(hit, new Vector3(.46f, .26f, .69f) * flash);
         }
 
         if (releaseAge == CountdownEffects.ImpactTick - ClashAudioLeadTicks)
-            SoundEngine.PlaySound(ClashSound, center - Vector2.UnitY * (20f * scale));
+            SoundEngine.PlaySound(ClashSound, hit);
         if (releaseAge == CountdownEffects.ImpactTick)
             ShakeCamera(4.6f);
 

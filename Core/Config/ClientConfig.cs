@@ -9,6 +9,12 @@ using PvPFramework.Core.Configs.ConfigElements;
 
 namespace PvPAdventure.Core.Config;
 
+public enum AdventurePaletteMode
+{
+    ViewerTeam,
+    ParticipatingTeams,
+}
+
 public class ClientConfig : ModConfig
 {
     public override ConfigScope Mode => ConfigScope.ClientSide;
@@ -51,6 +57,11 @@ public class ClientConfig : ModConfig
     [DefaultValue(ScorelineSize.Medium)]
     [JsonConverter(typeof(StringEnumConverter))]
     public ScorelineSize ScorelineUISize = ScorelineSize.Medium;
+
+    [BackgroundColor(36, 104, 118)]
+    [DefaultValue(AdventurePaletteMode.ViewerTeam)]
+    [JsonConverter(typeof(StringEnumConverter))]
+    public AdventurePaletteMode CountdownPalette = AdventurePaletteMode.ViewerTeam;
 
     [Header("Warnings")]
     [BackgroundColor(36, 104, 118)]

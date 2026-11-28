@@ -290,6 +290,11 @@ Mods: {
 					Tooltip: ""
 				}
 
+				CountdownPalette: {
+					Label: Countdown Portal and Sword Colors
+					Tooltip: Use your team color or a gradient of the teams in the match
+				}
+
 				SoundEffect: {
 					Label: Sound Effect
 					Tooltip: ""
@@ -1445,6 +1450,20 @@ Mods: {
 				Tier3Threshold: {
 					Label: Tier3 Threshold
 					Tooltip: ""
+				}
+			}
+
+			AdventurePaletteMode: {
+				Tooltip: ""
+
+				ViewerTeam: {
+					Label: Your Team
+					Tooltip: Use the color of the team you are on
+				}
+
+				ParticipatingTeams: {
+					Label: Participating Teams
+					Tooltip: Use a gradient based on the teams in the match
 				}
 			}
 

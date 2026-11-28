@@ -1,23 +1,28 @@
 using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using PvPAdventure.Core.Config;
+using PvPAdventure.Utilities.Xna;
 using Terraria;
 using Terraria.GameContent;
+using Terraria.ModLoader;
 
 namespace PvPAdventure.Common.Game;
 
 internal readonly record struct CountdownBladeTeams(int Hilt, int Tip = 0, int Middle = 0)
 {
-    internal Color ColorAlongBlade(float distance)
+    internal Color ColorAlongBlade(float distance) => BlendAlongBlade(distance, Main.teamColor);
+
+    internal Color BlendAlongBlade(float distance, ReadOnlySpan<Color> colors)
     {
-        Color hilt = Main.teamColor[Hilt];
+        Color hilt = colors[Hilt];
         if (Tip == 0) return hilt;
 
-        Color tip = Main.teamColor[Tip];
+        Color tip = colors[Tip];
         if (Middle == 0)
             return Color.Lerp(hilt, tip, MathHelper.SmoothStep(0f, 1f, (distance - .32f) / .36f));
 
-        Color middle = Main.teamColor[Middle];
+        Color middle = colors[Middle];
         return distance < .5f
             ? Color.Lerp(hilt, middle, MathHelper.SmoothStep(0f, 1f, (distance - .16f) / .34f))
             : Color.Lerp(middle, tip, MathHelper.SmoothStep(0f, 1f, (distance - .50f) / .34f));
@@ -28,17 +33,32 @@ internal readonly record struct CountdownClashTeams(CountdownBladeTeams Left, Co
 {
     private const int LastTeam = 5;
 
-    internal static CountdownClashTeams Capture()
+    internal bool HasViewerTint => Left.Hilt != 0 && Left == Right;
+
+    internal static int ViewerTeam => Main.LocalPlayer is { active: true, ghost: false, team: >= 1 and <= LastTeam } viewer
+        ? viewer.team
+        : 0;
+
+    internal static CountdownClashTeams Capture() =>
+        CaptureForPalette(ModContent.GetInstance<ClientConfig>().CountdownPalette);
+
+    internal static CountdownClashTeams CaptureForPalette(AdventurePaletteMode mode)
     {
-        int teams = 0;
-        foreach (Player player in Main.ActivePlayers)
+        int viewerTeam = ViewerTeam;
+        if (mode == AdventurePaletteMode.ParticipatingTeams)
         {
-            if (!player.ghost && player.team is >= 1 and <= LastTeam)
-                teams |= 1 << player.team;
+            int roster = 0;
+            foreach (Player player in Main.ActivePlayers)
+            {
+                if (!player.ghost && player.team is >= 1 and <= LastTeam)
+                    roster |= 1 << player.team;
+            }
+
+            return ForRoster(roster, viewerTeam);
         }
 
-        Player local = Main.LocalPlayer;
-        return ForRoster(teams, local?.active == true && !local.ghost ? local.team : 0);
+        CountdownBladeTeams blade = new(viewerTeam);
+        return new(blade, blade);
     }
 
     internal static CountdownClashTeams ForRoster(int teamMask, int localTeam)
@@ -68,6 +88,10 @@ internal readonly record struct CountdownClashTeams(CountdownBladeTeams Left, Co
 /// <summary>Animates the two swords from the vanilla PvP icon and tints their steel.</summary>
 internal sealed class CountdownClash : IDisposable
 {
+    private const int LogicalSize = 18;
+    private const int RefinedSize = LogicalSize * 2;
+    private const float WorldPixelSize = 2f;
+
     // The neutral active frame uses a two-pixel grid. Keep the topmost sword's pixels by row.
     private static ReadOnlySpan<byte> FrontSwordBounds =>
     [
@@ -80,7 +104,6 @@ internal sealed class CountdownClash : IDisposable
     internal void Draw(Vector2 center, float radius, float travel, float opacity, CountdownClashTeams teams)
     {
         float offset = radius * .81f * (1f - travel);
-        float twist = -.70f * (1f - travel);
 
         SpriteBatch batch = Main.spriteBatch;
         Matrix zoom = Main.GameViewMatrix.ZoomMatrix;
@@ -88,7 +111,7 @@ internal sealed class CountdownClash : IDisposable
         batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, null, zoom);
         try
         {
-            DrawPair(center, radius, offset, twist, opacity, teams);
+            DrawPair(center, offset, opacity, teams);
         }
         finally
         {
@@ -97,53 +120,82 @@ internal sealed class CountdownClash : IDisposable
         }
     }
 
-    internal void DrawPair(Vector2 center, float radius, float offset, float tilt, float opacity,
-        CountdownClashTeams teams)
+    internal void DrawPair(Vector2 center, float offset, float opacity, CountdownClashTeams teams)
     {
         if (left == null) SplitIcon();
 
         Vector2 separation = Vector2.UnitX * offset;
-        DrawSword(left.GetTexture(teams.Left), center - separation, radius, tilt, opacity);
-        DrawSword(right.GetTexture(teams.Right), center + separation, radius, -tilt, opacity);
+        DrawSword(left.GetTexture(teams.Left), center - separation, opacity);
+        DrawSword(right.GetTexture(teams.Right), center + separation, opacity);
     }
 
     private void SplitIcon()
     {
         Texture2D atlas = TextureAssets.Pvp[0].Value;
-        int stride = atlas.Width / 4;
-        int pixelSize = Math.Max(1, Math.Min(stride, atlas.Height / 6) / 19);
-        int size = 18 * pixelSize;
-        Rectangle frame = new(stride * 2, 0, size, size);
-        Color[] combined = new Color[frame.Width * frame.Height];
-        atlas.GetData(0, frame, combined, 0, combined.Length);
+        // tModLoader inserts a hover cell after each base-game column.
+        int columns = atlas.Width * 2 >= atlas.Height ? 4 : 2;
+        int stride = atlas.Width / columns;
+        int pixelSize = Math.Max(1, stride / (LogicalSize + 1));
+        int size = LogicalSize * pixelSize;
+        Rectangle frame = new(atlas.Width / 2, 0, size, size);
+        Color[] native = new Color[size * size];
+        atlas.GetData(0, frame, native, 0, native.Length);
+
+        Color[] combined = new Color[LogicalSize * LogicalSize];
+        for (int y = 0; y < LogicalSize; y++)
+        for (int x = 0; x < LogicalSize; x++)
+            combined[y * LogicalSize + x] = native[(y * pixelSize + pixelSize / 2) * size + x * pixelSize + pixelSize / 2];
+
         Color[] front = new Color[combined.Length];
         Color[] back = new Color[combined.Length];
         ReadOnlySpan<byte> bounds = FrontSwordBounds;
-        for (int y = 0; y < frame.Height; y++)
+        for (int y = 0; y < LogicalSize; y++)
         {
-            int row = (y / pixelSize) * 2;
-            int start = y * frame.Width + bounds[row] * pixelSize;
-            int count = (bounds[row + 1] - bounds[row] + 1) * pixelSize;
+            int row = y * 2;
+            int start = y * LogicalSize + bounds[row];
+            int count = bounds[row + 1] - bounds[row] + 1;
             Array.Copy(combined, start, front, start, count);
         }
 
-        for (int y = 0; y < frame.Height; y++)
-        for (int x = 0; x < frame.Width; x++)
+        for (int y = 0; y < LogicalSize; y++)
+        for (int x = 0; x < LogicalSize; x++)
         {
-            int index = y * frame.Width + x;
+            int index = y * LogicalSize + x;
             // Keep the visible rear sword from the frame and use the mirrored steel under the crossing.
-            back[index] = front[index].A == 0 ? combined[index] : front[y * frame.Width + frame.Width - 1 - x];
+            back[index] = front[index].A == 0 ? combined[index] : front[y * LogicalSize + LogicalSize - 1 - x];
         }
 
-        left = new Sword(atlas.GraphicsDevice, frame.Width, frame.Height, back, 1);
-        right = new Sword(atlas.GraphicsDevice, frame.Width, frame.Height, front, -1);
+        left = new Sword(atlas.GraphicsDevice, back, 1);
+        right = new Sword(atlas.GraphicsDevice, front, -1);
     }
 
-    private static void DrawSword(Texture2D sprite, Vector2 position, float radius, float rotation, float opacity)
+    private static int[] RefinedArtSources(Color[] steel)
     {
-        Vector2 size = sprite.Size();
-        float scale = radius * .99f / Math.Max(size.X, size.Y);
-        Main.spriteBatch.Draw(sprite, position, null, Color.White * opacity, rotation, size * .5f, scale, SpriteEffects.None, 0f);
+        int[] sources = new int[RefinedSize * RefinedSize];
+        for (int y = 0; y < LogicalSize; y++)
+        for (int x = 0; x < LogicalSize; x++)
+        {
+            int center = y * LogicalSize + x;
+            var (topLeft, topRight, bottomLeft, bottomRight) = PixelArtScale.RefinePixel(steel, center,
+                x > 0 ? center - 1 : center,
+                x < LogicalSize - 1 ? center + 1 : center,
+                y > 0 ? center - LogicalSize : center,
+                y < LogicalSize - 1 ? center + LogicalSize : center);
+            int output = y * 2 * RefinedSize + x * 2;
+            sources[output] = topLeft;
+            sources[output + 1] = topRight;
+            sources[output + RefinedSize] = bottomLeft;
+            sources[output + RefinedSize + 1] = bottomRight;
+        }
+        return sources;
+    }
+
+    private static void DrawSword(Texture2D sprite, Vector2 position, float opacity)
+    {
+        Vector2 cells = (position + Main.screenPosition) / WorldPixelSize;
+        position = new Vector2(MathF.Round(cells.X), MathF.Round(cells.Y)) * WorldPixelSize - Main.screenPosition;
+        Main.spriteBatch.Draw(sprite, position, null, Color.White * opacity, 0f, new Vector2(RefinedSize * .5f),
+            WorldPixelSize, SpriteEffects.None, 0f);
     }
 
     public void Dispose()
@@ -152,10 +204,12 @@ internal sealed class CountdownClash : IDisposable
         right?.Dispose();
     }
 
-    private sealed class Sword(GraphicsDevice device, int width, int height, Color[] steel, int direction) : IDisposable
+    private sealed class Sword(GraphicsDevice device, Color[] steel, int direction) : IDisposable
     {
+        private readonly int[] artSources = RefinedArtSources(steel);
         private Texture2D colored;
         private Color[] working;
+        private Color[] refined;
         private float[] bladeDistance;
         private CountdownBladeTeams currentTeams;
 
@@ -171,8 +225,12 @@ internal sealed class CountdownClash : IDisposable
                 TintBlade(teams);
             }
 
-            colored ??= new Texture2D(device, width, height);
-            colored.SetData(working);
+            refined ??= new Color[artSources.Length];
+            for (int i = 0; i < refined.Length; i++)
+                refined[i] = working[artSources[i]];
+
+            colored ??= new Texture2D(device, RefinedSize, RefinedSize);
+            colored.SetData(refined);
             currentTeams = teams;
             return colored;
         }
@@ -211,7 +269,7 @@ internal sealed class CountdownClash : IDisposable
                     continue;
                 }
 
-                float along = direction * (i % width) - 1.14f * (i / width);
+                float along = direction * (i % LogicalSize) - 1.14f * (i / LogicalSize);
                 distance[i] = along;
                 minimum = Math.Min(minimum, along);
                 maximum = Math.Max(maximum, along);
