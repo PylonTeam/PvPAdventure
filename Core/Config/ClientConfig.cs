@@ -63,6 +63,11 @@ public class ClientConfig : ModConfig
     [JsonConverter(typeof(StringEnumConverter))]
     public AdventurePaletteMode CountdownPalette = AdventurePaletteMode.ViewerTeam;
 
+    [BackgroundColor(36, 104, 118)]
+    [DefaultValue(AdventurePaletteMode.ViewerTeam)]
+    [JsonConverter(typeof(StringEnumConverter))]
+    public AdventurePaletteMode WorldPortalPalette = AdventurePaletteMode.ViewerTeam;
+
     [Header("Warnings")]
     [BackgroundColor(36, 104, 118)]
     [DefaultValue(true)]

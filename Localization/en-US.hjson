@@ -295,6 +295,11 @@ Mods: {
 					Tooltip: Use your team color or a gradient of the teams in the match
 				}
 
+				WorldPortalPalette: {
+					Label: World Portal Colors
+					Tooltip: Use your team portal sprite or blend the colors of the teams in the match
+				}
+
 				SoundEffect: {
 					Label: Sound Effect
 					Tooltip: ""
@@ -1622,6 +1627,8 @@ Mods: {
 			TeleportToMyBed: Teleport to my bed
 			TeleportToTeammatesPortal: Teleport to {0}'s portal
 			TeammatesPortal: "{0}'s Portal"
+			SpawnboxPortal: World Portal
+			TeleportToSpawnboxPortal: Teleport to the World Portal
 		}
 
 		Item: {

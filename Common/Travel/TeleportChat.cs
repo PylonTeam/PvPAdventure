@@ -131,6 +131,7 @@ public static class TeleportChat
             TravelType.Bed => GetOwnedDestination(player, targetIdx, "bed"),
             TravelType.Portal => GetOwnedDestination(player, targetIdx, "portal"),
             TravelType.Random => "a random location",
+            TravelType.SpawnboxPortal => Language.GetTextValue("Mods.PvPAdventure.Travel.SpawnboxPortal"),
             _ => ""
         };
     }

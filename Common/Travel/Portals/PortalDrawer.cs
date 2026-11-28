@@ -9,6 +9,22 @@ namespace PvPAdventure.Common.Travel.Portals;
 
 public static class PortalDrawer
 {
+    internal static void HandleMapInteraction(Player player, Rectangle hitbox)
+    {
+        if (!hitbox.Contains(Main.MouseWorld.ToPoint()) || player.Distance(hitbox.Center.ToVector2()) >= 200f)
+            return;
+
+        player.noThrow = 2;
+        player.cursorItemIconEnabled = true;
+        player.cursorItemIconID = -1;
+
+        if (!Main.mouseRight || !Main.mouseRightRelease)
+            return;
+
+        Main.mouseRightRelease = false;
+        player.TryOpeningFullscreenMap();
+    }
+
     public static void DrawPortalOutline(SpriteBatch sb, int team, Vector2 position, Rectangle frame, float rotation, Vector2 origin, float scale, float opacity, SpriteEffects effects = SpriteEffects.None)
     {
         if (scale <= 0f || opacity <= 0f) return;

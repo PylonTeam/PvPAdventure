@@ -37,15 +37,21 @@ public class TravelMapLayer : ModSystem
         if (local?.active != true)
             return;
 
-        DrawWorldSpawn(local, ref context, ref text);
-        DrawBeds(local, ref context, ref text);
-        DrawPortals(local, ref context, ref text);
+        TravelTarget? hoveredTarget = null;
+        DrawWorldSpawn(local, ref context, ref text, ref hoveredTarget);
+        DrawBeds(local, ref context, ref text, ref hoveredTarget);
+        DrawPortals(local, ref context, ref text, ref hoveredTarget);
+        DrawSpawnboxPortal(local, ref context, ref text, ref hoveredTarget);
+
+        if (hoveredTarget is { } target && TryClick(local))
+            TravelTeleportSystem.ActivateTarget(target);
     }
 
-    private static void DrawWorldSpawn(Player local, ref MapOverlayDrawContext context, ref string text)
+    private static void DrawWorldSpawn(Player local, ref MapOverlayDrawContext context, ref string text, ref TravelTarget? hoveredTarget)
     {
         TravelTarget target = new(TravelType.World, -1, GetPlayerTopLeftAtTile(local, Main.spawnTileX, Main.spawnTileY), "World Spawn", "World", true);
-        Color color = GetMapPointColor(local, target, Color.White);
+        bool canTeleport = CanExecuteMapTeleport(local, target);
+        Color color = GetMapPointColor(canTeleport);
 
         MapOverlayDrawContext.DrawResult result = context.Draw(TextureAssets.SpawnPoint.Value, new Vector2(Main.spawnTileX, Main.spawnTileY), color, new SpriteFrame(1, 1), 1f, 1.8f, Alignment.Bottom);
 
@@ -53,13 +59,13 @@ public class TravelMapLayer : ModSystem
             return;
 
         BlockMapInput(local);
-        text = GetMapHoverText(local, target, Language.GetTextValue("Mods.PvPAdventure.Travel.TeleportToWorldSpawn"));
+        text = GetMapHoverText(local, target, Language.GetTextValue("Mods.PvPAdventure.Travel.TeleportToWorldSpawn"), canTeleport);
 
-        if (CanExecuteMapTeleport(local, target) && TryClick(local))
-            TravelTeleportSystem.ActivateTarget(target);
+        if (canTeleport)
+            hoveredTarget ??= target;
     }
 
-    private static void DrawBeds(Player local, ref MapOverlayDrawContext context, ref string text)
+    private static void DrawBeds(Player local, ref MapOverlayDrawContext context, ref string text, ref TravelTarget? hoveredTarget)
     {
         for (int i = 0; i < Main.maxPlayers; i++)
         {
@@ -74,7 +80,8 @@ public class TravelMapLayer : ModSystem
             string bedName = Language.GetTextValue("Mods.PvPAdventure.Travel.TeammatesBed", player.name);
             TravelTarget target = new(TravelType.Bed, player.whoAmI, GetPlayerTopLeftAtTile(local, player.SpawnX, player.SpawnY), bedName, "Bed", true);
             Vector2 tilePos = new(player.SpawnX, player.SpawnY);
-            Color color = GetMapPointColor(local, target, Color.White);
+            bool canTeleport = CanExecuteMapTeleport(local, target);
+            Color color = GetMapPointColor(canTeleport);
 
             MapOverlayDrawContext.DrawResult result = context.Draw(TextureAssets.Item[ItemID.Bed].Value, tilePos, color, new SpriteFrame(1, 1), 1f, 1.8f, Alignment.Bottom);
 
@@ -87,14 +94,14 @@ public class TravelMapLayer : ModSystem
                 ? Language.GetTextValue("Mods.PvPAdventure.Travel.TeleportToMyBed")
                 : Language.GetTextValue("Mods.PvPAdventure.Travel.TeleportToTeammatesBed", player.name);
 
-            text = GetMapHoverText(local, target, teleportText);
+            text = GetMapHoverText(local, target, teleportText, canTeleport);
 
-            if (CanExecuteMapTeleport(local, target) && TryClick(local))
-                TravelTeleportSystem.ActivateTarget(target);
+            if (canTeleport)
+                hoveredTarget ??= target;
         }
     }
 
-    private static void DrawPortals(Player local, ref MapOverlayDrawContext context, ref string text)
+    private static void DrawPortals(Player local, ref MapOverlayDrawContext context, ref string text, ref TravelTarget? hoveredTarget)
     {
         foreach (PortalNPC portal in PortalSystem.ActivePortals())
         {
@@ -104,7 +111,8 @@ public class TravelMapLayer : ModSystem
             string ownerName = GetPlayerName(portal.OwnerIndex);
             string portalName = Language.GetTextValue("Mods.PvPAdventure.Travel.TeammatesPortal", ownerName);
             TravelTarget target = new(TravelType.Portal, portal.OwnerIndex, GetPlayerTopLeftAtWorldBottom(local, portal.WorldPosition), portalName, "Portal", true);
-            Color color = GetMapPointColor(local, target, Color.White);
+            bool canTeleport = CanExecuteMapTeleport(local, target);
+            Color color = GetMapPointColor(canTeleport);
 
             MapOverlayDrawContext.DrawResult result = context.Draw(PortalAssets.GetPortalMinimapTexture(portal.OwnerTeam), portal.WorldPosition / 16f, color, new SpriteFrame(1, 1), 1f, 1.8f, Alignment.Bottom);
 
@@ -117,11 +125,31 @@ public class TravelMapLayer : ModSystem
                 ? Language.GetTextValue("Mods.PvPAdventure.Travel.TeleportToMyPortal")
                 : Language.GetTextValue("Mods.PvPAdventure.Travel.TeleportToTeammatesPortal", ownerName);
 
-            text = GetMapHoverText(local, target, teleportText);
+            text = GetMapHoverText(local, target, teleportText, canTeleport);
 
-            if (CanExecuteMapTeleport(local, target) && TryClick(local))
-                TravelTeleportSystem.ActivateTarget(target);
+            if (canTeleport)
+                hoveredTarget ??= target;
         }
+    }
+
+    private static void DrawSpawnboxPortal(Player local, ref MapOverlayDrawContext context, ref string text, ref TravelTarget? hoveredTarget)
+    {
+        if (!SpawnboxPortal.IsTeamMember(local) || !SpawnboxPortal.TryGetAnchor(out Vector2 bottom))
+            return;
+
+        string name = Language.GetTextValue("Mods.PvPAdventure.Travel.SpawnboxPortal");
+        TravelTarget target = new(TravelType.SpawnboxPortal, -1, GetPlayerTopLeftAtWorldBottom(local, bottom), name, "Portal", true);
+        bool canTeleport = CanExecuteMapTeleport(local, target);
+        MapOverlayDrawContext.DrawResult result = context.Draw(PortalAssets.GetPortalMinimapTexture(local.team),
+            bottom / 16f, GetMapPointColor(canTeleport), new SpriteFrame(1, 1), 1f, 1.8f, Alignment.Bottom);
+
+        if (!result.IsMouseOver)
+            return;
+
+        BlockMapInput(local);
+        text = GetMapHoverText(local, target, Language.GetTextValue("Mods.PvPAdventure.Travel.TeleportToSpawnboxPortal"), canTeleport);
+        // This marker takes precedence over overlapping spawn and player markers, even while sealed.
+        hoveredTarget = canTeleport ? target : null;
     }
 
     private static bool TryClick(Player local)
@@ -166,19 +194,16 @@ public class TravelMapLayer : ModSystem
 
     private static bool CanExecuteMapTeleport(Player local, TravelTarget target)
     {
-        return TravelRegions.IsInTravelRegion(local) &&
+        return (target.Type == TravelType.SpawnboxPortal || TravelRegions.IsInTravelRegion(local)) &&
             !TravelTeleportSystem.IsWaitingForPortalCreator(local) &&
             TravelTeleportSystem.CanTeleport(local, target, out _);
     }
 
-    private static Color GetMapPointColor(Player local, TravelTarget target, Color color)
-    {
-        return CanExecuteMapTeleport(local, target) ? color : color * 0.5f;
-    }
+    private static Color GetMapPointColor(bool canTeleport) => canTeleport ? Color.White : Color.White * 0.5f;
 
-    private static string GetMapHoverText(Player local, TravelTarget target, string teleportText)
+    private static string GetMapHoverText(Player local, TravelTarget target, string teleportText, bool canTeleport)
     {
-        if (CanExecuteMapTeleport(local, target))
+        if (canTeleport)
             return teleportText;
 
         return TravelTeleportSystem.TeleportCooldownSecondsLeft(local) > 0 ? TravelTeleportSystem.TeleportCooldownText(local) : target.Name;

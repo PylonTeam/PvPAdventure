@@ -243,6 +243,15 @@ internal class TravelTeleportSystem : ModSystem
             return false;
         }
 
+        if (target.Type == TravelType.SpawnboxPortal)
+        {
+            if (target.PlayerIndex == -1 && !ignoreCooldown && SpawnboxPortal.CanUse(player))
+                return true;
+
+            reason = "The spawnbox portal is unavailable.";
+            return false;
+        }
+
         if (target.Type is TravelType.World or TravelType.Bed or TravelType.Portal or TravelType.Random)
             return true;
 
@@ -265,9 +274,16 @@ internal class TravelTeleportSystem : ModSystem
             return true;
         }
 
+        Vector2 position = target.WorldPosition;
+        if (target.Type == TravelType.SpawnboxPortal && !SpawnboxPortal.TryGetDestination(player, out position))
+        {
+            reason = "The spawnbox portal has no safe landing.";
+            return false;
+        }
+
         player.velocity = Vector2.Zero;
-        player.Teleport(target.WorldPosition, TeleportationStyleID.RodOfDiscord);
-        player.fallStart = (int)(target.WorldPosition.Y / 16f);
+        player.Teleport(position, TeleportationStyleID.RodOfDiscord);
+        player.fallStart = (int)(position.Y / 16f);
         StartTeleportCooldown(player);
         return true;
     }

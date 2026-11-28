@@ -112,20 +112,7 @@ public sealed class PortalNPC : ModNPC
 
             PortalDrawer.SpawnPortalDust(NPC.Bottom, 1f);
 
-            Player player = Main.LocalPlayer;
-
-            if (NPC.Hitbox.Contains(Main.MouseWorld.ToPoint()) && player.Distance(NPC.Center) < 200f)
-            {
-                player.noThrow = 2;
-                player.cursorItemIconEnabled = true;
-                player.cursorItemIconID = -1;
-
-                if (Main.mouseRight && Main.mouseRightRelease)
-                {
-                    Main.mouseRightRelease = false;
-                    player.TryOpeningFullscreenMap();
-                }
-            }
+            PortalDrawer.HandleMapInteraction(Main.LocalPlayer, NPC.Hitbox);
         }
 
         if (Main.netMode == NetmodeID.MultiplayerClient)

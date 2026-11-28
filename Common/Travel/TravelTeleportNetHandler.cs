@@ -113,6 +113,9 @@ public static class TravelTeleportNetHandler
         if (whoAmI < 0 || whoAmI >= Main.maxPlayers || Main.player[whoAmI] is not { active: true } player)
             return;
 
+        if (type == TravelType.SpawnboxPortal && ignoreCooldown)
+            return;
+
         if (!ignoreCooldown && TravelTeleportSystem.TeleportCooldownFramesLeft(player) > 0)
             return;
 
@@ -220,6 +223,9 @@ public static class TravelTeleportNetHandler
 
             case TravelType.Portal:
                 return TryResolvePortal(player, targetPlayerIndex, out position, out reason);
+
+            case TravelType.SpawnboxPortal:
+                return targetPlayerIndex == -1 && SpawnboxPortal.TryGetDestination(player, out position);
 
             default:
                 reason = "Unsupported travel type";

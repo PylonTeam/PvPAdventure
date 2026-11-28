@@ -15,4 +15,5 @@ public enum TravelType : byte
     Bed,
     Portal,
     Random,
+    SpawnboxPortal,
 }
